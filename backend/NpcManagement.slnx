@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="NpcManagement.Api/NpcManagement.Api.csproj" />
+  <Project Path="NpcManagement.Domain/NpcManagement.Domain.csproj" />
+  <Project Path="NpcManagement.Infrastructure/NpcManagement.Infrastructure.csproj" />
+</Solution>
