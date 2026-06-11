@@ -41,9 +41,10 @@ import {
 } from '@/lib/api'
 import {
   hasUnsavedChanges,
-  loadBackup,
+  lastSavedBackup,
+  pickBackupFile,
   restoreBackup,
-  saveBackup,
+  saveBackupToFile,
 } from '@/lib/backup'
 import {
   fetchStatBlock,
@@ -97,11 +98,36 @@ function NpcsPage() {
     onSuccess: invalidate,
   })
 
-  const [backup, setBackup] = useState(loadBackup)
+  const [backup, setBackup] = useState(lastSavedBackup)
+
+  const saveMutation = useMutation({
+    mutationFn: saveBackupToFile,
+    onSuccess: (saved) => {
+      if (saved) setBackup(saved)
+    },
+  })
 
   const restoreMutation = useMutation({
-    mutationFn: restoreBackup,
-    onSuccess: invalidate,
+    mutationFn: async () => {
+      const picked = await pickBackupFile()
+      if (!picked) return null
+      const when = new Date(picked.savedAt).toLocaleString()
+      if (
+        !confirm(
+          `Replace the current NPCs with the backup saved ${when} ` +
+            `(${picked.npcs.length} NPC${picked.npcs.length === 1 ? '' : 's'})?`,
+        )
+      ) {
+        return null
+      }
+      return restoreBackup(picked)
+    },
+    onSuccess: (restored) => {
+      if (restored) {
+        setBackup(restored)
+        invalidate()
+      }
+    },
   })
 
   const unsaved =
@@ -144,31 +170,20 @@ function NpcsPage() {
           {unsaved && <Badge variant="outline">Unsaved changes</Badge>}
           <Button
             variant="outline"
-            disabled={!npcsQuery.isSuccess}
-            onClick={() => setBackup(saveBackup(npcsQuery.data ?? []))}
+            disabled={!npcsQuery.isSuccess || saveMutation.isPending}
+            onClick={() => saveMutation.mutate(npcsQuery.data ?? [])}
           >
-            Save backup
+            {saveMutation.isPending ? 'Saving…' : 'Save backup'}
           </Button>
           <Button
             variant="outline"
-            disabled={!backup || restoreMutation.isPending}
+            disabled={restoreMutation.isPending}
             title={
               backup
-                ? `Saved ${new Date(backup.savedAt).toLocaleString()}`
+                ? `Last saved ${new Date(backup.savedAt).toLocaleString()}`
                 : 'No backup saved yet'
             }
-            onClick={() => {
-              if (
-                backup &&
-                confirm(
-                  `Replace the current NPCs with the backup saved ${new Date(
-                    backup.savedAt,
-                  ).toLocaleString()}?`,
-                )
-              ) {
-                restoreMutation.mutate(backup)
-              }
-            }}
+            onClick={() => restoreMutation.mutate()}
           >
             {restoreMutation.isPending ? 'Loading…' : 'Load backup'}
           </Button>
@@ -182,6 +197,12 @@ function NpcsPage() {
           </Button>
         </div>
       </div>
+
+      {saveMutation.isError && (
+        <p className="text-destructive">
+          Failed to save backup: {saveMutation.error.message}
+        </p>
+      )}
 
       {restoreMutation.isError && (
         <p className="text-destructive">
@@ -366,7 +387,7 @@ function NpcFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] w-1/2 max-w-none overflow-y-auto sm:max-w-none">
         <DialogHeader>
           <DialogTitle>{npc ? `Edit ${npc.name}` : 'Add NPC'}</DialogTitle>
           <DialogDescription>

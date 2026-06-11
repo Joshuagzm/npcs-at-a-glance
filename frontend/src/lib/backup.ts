@@ -1,12 +1,39 @@
 import { createNpc, deleteNpc, listNpcs, type Npc, type NpcInput } from './api'
 
-// The backend stores NPCs in memory and loses them on restart; a
-// localStorage snapshot lets the user save and restore their data.
+// Backups are JSON files the user saves to / loads from disk via the
+// File System Access API (with a download / file-input fallback for
+// browsers without it). localStorage keeps a copy of the last saved
+// snapshot purely so unsaved-change detection survives page reloads.
 const STORAGE_KEY = 'npc-management:backup'
 
 export interface NpcBackup {
   savedAt: string
   npcs: Npc[]
+}
+
+// Minimal File System Access API surface (not yet in the TS DOM lib).
+interface BackupFileHandle {
+  getFile(): Promise<File>
+  createWritable(): Promise<{
+    write(data: string): Promise<void>
+    close(): Promise<void>
+  }>
+}
+
+interface PickerWindow extends Window {
+  showSaveFilePicker?: (options?: unknown) => Promise<BackupFileHandle>
+  showOpenFilePicker?: (options?: unknown) => Promise<BackupFileHandle[]>
+}
+
+const FILE_TYPES = [
+  {
+    description: 'NPC backup (JSON)',
+    accept: { 'application/json': ['.json'] },
+  },
+]
+
+function isCancellation(error: unknown): boolean {
+  return error instanceof DOMException && error.name === 'AbortError'
 }
 
 export function toInput(npc: Npc): NpcInput {
@@ -33,13 +60,12 @@ function fingerprint(npcs: Npc[]): string {
   )
 }
 
-export function saveBackup(npcs: Npc[]): NpcBackup {
-  const backup: NpcBackup = { savedAt: new Date().toISOString(), npcs }
+function remember(backup: NpcBackup): NpcBackup {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(backup))
   return backup
 }
 
-export function loadBackup(): NpcBackup | null {
+export function lastSavedBackup(): NpcBackup | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return null
@@ -58,11 +84,93 @@ export function hasUnsavedChanges(
   return fingerprint(npcs) !== fingerprint(backup.npcs)
 }
 
+function parseBackup(raw: string): NpcBackup {
+  let backup: NpcBackup
+  try {
+    backup = JSON.parse(raw) as NpcBackup
+  } catch {
+    throw new Error('That file is not valid JSON')
+  }
+  if (!Array.isArray(backup.npcs)) {
+    throw new Error('That file is not an NPC backup')
+  }
+  return backup
+}
+
+/** Save to a user-chosen file. Returns null if the user cancels. */
+export async function saveBackupToFile(npcs: Npc[]): Promise<NpcBackup | null> {
+  const backup: NpcBackup = { savedAt: new Date().toISOString(), npcs }
+  const json = JSON.stringify(backup, null, 2)
+  const suggestedName = `npc-backup-${backup.savedAt.slice(0, 10)}.json`
+
+  const picker = window as PickerWindow
+  if (picker.showSaveFilePicker) {
+    let handle: BackupFileHandle
+    try {
+      handle = await picker.showSaveFilePicker({
+        suggestedName,
+        types: FILE_TYPES,
+      })
+    } catch (error) {
+      if (isCancellation(error)) return null
+      throw error
+    }
+    const writable = await handle.createWritable()
+    await writable.write(json)
+    await writable.close()
+  } else {
+    // No File System Access API (e.g. Firefox): download instead.
+    const url = URL.createObjectURL(
+      new Blob([json], { type: 'application/json' }),
+    )
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = suggestedName
+    anchor.click()
+    URL.revokeObjectURL(url)
+  }
+  return remember(backup)
+}
+
+/** Let the user pick a backup file. Returns null if they cancel. */
+export async function pickBackupFile(): Promise<NpcBackup | null> {
+  const picker = window as PickerWindow
+  if (picker.showOpenFilePicker) {
+    let handles: BackupFileHandle[]
+    try {
+      handles = await picker.showOpenFilePicker({ types: FILE_TYPES })
+    } catch (error) {
+      if (isCancellation(error)) return null
+      throw error
+    }
+    const file = await handles[0].getFile()
+    return parseBackup(await file.text())
+  }
+
+  // Fallback: a hidden file input still opens a file explorer dialog.
+  return new Promise((resolve, reject) => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'application/json,.json'
+    input.onchange = () => {
+      const file = input.files?.[0]
+      if (!file) return resolve(null)
+      file
+        .text()
+        .then((text) => resolve(parseBackup(text)))
+        .catch(reject)
+    }
+    input.oncancel = () => resolve(null)
+    input.click()
+  })
+}
+
 /** Replace the server's NPCs with the backup's contents. */
-export async function restoreBackup(backup: NpcBackup): Promise<void> {
+export async function restoreBackup(backup: NpcBackup): Promise<NpcBackup> {
   const current = await listNpcs()
   await Promise.all(current.map((npc) => deleteNpc(npc.id)))
   for (const npc of backup.npcs) {
     await createNpc(toInput(npc))
   }
+  return remember(backup)
 }
