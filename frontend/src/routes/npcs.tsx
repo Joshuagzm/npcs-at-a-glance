@@ -423,6 +423,11 @@ function NpcFormDialog({
                   {statBlock.constitution} · INT {statBlock.intelligence} · WIS{' '}
                   {statBlock.wisdom} · CHA {statBlock.charisma}
                 </p>
+                {statBlock.flavorText && (
+                  <p className="max-h-24 overflow-y-auto border-t pt-1 text-xs text-muted-foreground italic">
+                    {statBlock.flavorText}
+                  </p>
+                )}
               </div>
             ) : (
               <>

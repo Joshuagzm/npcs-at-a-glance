@@ -162,6 +162,9 @@ def load_srd(path: str):
                 "wisdom": m["wisdom"],
                 "charisma": m["charisma"],
                 "challengeRating": m["challenge_rating"],
+                "flavorText": " ".join(m["desc"])
+                if isinstance(m.get("desc"), list)
+                else (m.get("desc") or None),
             }
         )
     return entries
@@ -216,7 +219,9 @@ def main() -> None:
         # Curated name that exists in the SRD: adopt the clean SRD data.
         candidate = (block["nameCandidate"] or "").lower()
         if candidate in srd_by_name:
-            results.append({**srd_by_name[candidate], "source": "srd"})
+            results.append(
+                {**srd_by_name[candidate], "source": "srd", "page": block["page"]}
+            )
             continue
         best, best_score = None, 0
         for entry in srd:
@@ -224,7 +229,7 @@ def main() -> None:
             if score > best_score:
                 best, best_score = entry, score
         if best is not None and best_score >= 7:
-            results.append({**best, "source": "srd"})
+            results.append({**best, "source": "srd", "page": block["page"]})
         else:
             unmatched.append(block)
             if all(
@@ -260,7 +265,9 @@ def main() -> None:
                         "wisdom": block["wis"],
                         "charisma": block["cha"],
                         "challengeRating": block["challengeRating"],
+                        "flavorText": None,
                         "source": f"pdf-page-{block['page']}",
+                        "page": block["page"],
                     }
                 )
 

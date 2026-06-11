@@ -15,4 +15,5 @@ public class NpcStatBlock
     public int Wisdom { get; set; }
     public int Charisma { get; set; }
     public double ChallengeRating { get; set; }
+    public string? FlavorText { get; set; }
 }

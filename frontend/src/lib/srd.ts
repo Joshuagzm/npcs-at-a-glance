@@ -27,6 +27,7 @@ interface LocalMonster {
   wisdom: number
   charisma: number
   challengeRating: number
+  flavorText: string | null
 }
 
 let localMonstersPromise: Promise<Map<string, StatBlock> | null> | null = null
@@ -37,9 +38,24 @@ function loadLocalMonsters(): Promise<Map<string, StatBlock> | null> {
       if (!response.ok) return null
       const monsters = (await response.json()) as LocalMonster[]
       return new Map(
-        monsters.map(({ name, ...stats }) => [
-          name.toLowerCase(),
-          { monsterName: name, ...stats },
+        monsters.map((m) => [
+          m.name.toLowerCase(),
+          {
+            monsterName: m.name,
+            size: m.size,
+            type: m.type,
+            armorClass: m.armorClass,
+            hitPoints: m.hitPoints,
+            speed: m.speed,
+            strength: m.strength,
+            dexterity: m.dexterity,
+            constitution: m.constitution,
+            intelligence: m.intelligence,
+            wisdom: m.wisdom,
+            charisma: m.charisma,
+            challengeRating: m.challengeRating,
+            flavorText: m.flavorText,
+          },
         ]),
       )
     })
@@ -85,6 +101,7 @@ interface SrdMonster {
   wisdom: number
   charisma: number
   challenge_rating: number
+  desc?: string
 }
 
 export async function fetchStatBlock(index: string): Promise<StatBlock> {
@@ -127,6 +144,7 @@ export async function fetchStatBlock(index: string): Promise<StatBlock> {
     wisdom: monster.wisdom,
     charisma: monster.charisma,
     challengeRating: monster.challenge_rating,
+    flavorText: monster.desc ?? null,
   }
 }
 

@@ -87,6 +87,7 @@ public class NpcsController : ControllerBase
                 Wisdom = request.Wisdom,
                 Charisma = request.Charisma,
                 ChallengeRating = request.ChallengeRating,
+                FlavorText = request.FlavorText,
             };
 
     [HttpDelete("{id:guid}")]

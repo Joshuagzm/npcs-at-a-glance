@@ -28,7 +28,13 @@ python scripts/extract_mm_text.py resources/mm_clean.pdf resources/mm_text.txt
 #      text layer, losing late S-Z monsters and both appendices).
 python scripts/parse_mm_statblocks.py resources/mm_text.txt resources/srd_monsters.json resources/monster-manual.json
 
-# 4. Review and install.
+# 4. Attach lore ("flavor text"). Uses a paragraph-oriented extraction
+#    so stat-block traits can be filtered out; lore is matched to each
+#    monster by name mentions within +/-2 pages of its stat block.
+python scripts/extract_mm_paragraphs.py resources/mm_clean.pdf resources/mm_paragraphs.txt
+python scripts/add_flavor_text.py resources/mm_paragraphs.txt resources/monster-manual.json
+
+# 5. Review and install.
 python scripts/report_dataset.py resources/monster-manual.json
 cp resources/monster-manual.json frontend/public/monster-manual.json
 ```

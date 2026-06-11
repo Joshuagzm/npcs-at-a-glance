@@ -15,7 +15,8 @@ public record StatBlockRequest(
     [Range(1, 30)] int Intelligence,
     [Range(1, 30)] int Wisdom,
     [Range(1, 30)] int Charisma,
-    [Range(0, 30)] double ChallengeRating);
+    [Range(0, 30)] double ChallengeRating,
+    string? FlavorText = null);
 
 public record CreateNpcRequest(
     [Required] string Name,

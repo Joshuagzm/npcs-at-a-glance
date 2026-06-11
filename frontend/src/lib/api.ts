@@ -12,6 +12,7 @@ export interface StatBlock {
   wisdom: number
   charisma: number
   challengeRating: number
+  flavorText: string | null
 }
 
 export interface Npc {
