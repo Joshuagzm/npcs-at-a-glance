@@ -41,6 +41,7 @@ public class NpcsController : ControllerBase
             Level = request.Level,
             IsHostile = request.IsHostile,
             Notes = request.Notes,
+            StatBlock = ToStatBlock(request.StatBlock),
         };
 
         var created = await _npcRepository.AddAsync(npc, cancellationToken);
@@ -62,10 +63,31 @@ public class NpcsController : ControllerBase
         existing.Level = request.Level;
         existing.IsHostile = request.IsHostile;
         existing.Notes = request.Notes;
+        existing.StatBlock = ToStatBlock(request.StatBlock);
 
         var updated = await _npcRepository.UpdateAsync(existing, cancellationToken);
         return updated ? Ok(existing) : NotFound();
     }
+
+    private static NpcStatBlock? ToStatBlock(StatBlockRequest? request) =>
+        request is null
+            ? null
+            : new NpcStatBlock
+            {
+                MonsterName = request.MonsterName,
+                Size = request.Size,
+                Type = request.Type,
+                ArmorClass = request.ArmorClass,
+                HitPoints = request.HitPoints,
+                Speed = request.Speed,
+                Strength = request.Strength,
+                Dexterity = request.Dexterity,
+                Constitution = request.Constitution,
+                Intelligence = request.Intelligence,
+                Wisdom = request.Wisdom,
+                Charisma = request.Charisma,
+                ChallengeRating = request.ChallengeRating,
+            };
 
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)

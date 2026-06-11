@@ -9,5 +9,6 @@ public class Npc
     public int Level { get; set; } = 1;
     public bool IsHostile { get; set; }
     public string? Notes { get; set; }
+    public NpcStatBlock? StatBlock { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }

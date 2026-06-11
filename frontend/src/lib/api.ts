@@ -1,3 +1,19 @@
+export interface StatBlock {
+  monsterName: string
+  size: string
+  type: string
+  armorClass: number
+  hitPoints: number
+  speed: string
+  strength: number
+  dexterity: number
+  constitution: number
+  intelligence: number
+  wisdom: number
+  charisma: number
+  challengeRating: number
+}
+
 export interface Npc {
   id: string
   name: string
@@ -6,6 +22,7 @@ export interface Npc {
   level: number
   isHostile: boolean
   notes: string | null
+  statBlock: StatBlock | null
   createdAt: string
 }
 
@@ -16,6 +33,7 @@ export interface NpcInput {
   level: number
   isHostile: boolean
   notes: string | null
+  statBlock: StatBlock | null
 }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {

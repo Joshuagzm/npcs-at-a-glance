@@ -37,7 +37,13 @@ import {
   updateNpc,
   type Npc,
   type NpcInput,
+  type StatBlock,
 } from '@/lib/api'
+import {
+  fetchStatBlock,
+  formatChallengeRating,
+  searchMonsters,
+} from '@/lib/srd'
 import {
   generateName,
   RACE_LABELS,
@@ -143,6 +149,7 @@ function NpcsPage() {
               <TableHead>Location</TableHead>
               <TableHead className="text-right">Level</TableHead>
               <TableHead>Disposition</TableHead>
+              <TableHead>Stat block</TableHead>
               <TableHead className="w-0" />
             </TableRow>
           </TableHeader>
@@ -165,6 +172,21 @@ function NpcsPage() {
                     <Badge variant="destructive">Hostile</Badge>
                   ) : (
                     <Badge variant="secondary">Friendly</Badge>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {npc.statBlock ? (
+                    <>
+                      {npc.statBlock.monsterName}
+                      <p className="text-xs text-muted-foreground">
+                        CR{' '}
+                        {formatChallengeRating(npc.statBlock.challengeRating)} ·
+                        AC {npc.statBlock.armorClass} · HP{' '}
+                        {npc.statBlock.hitPoints}
+                      </p>
+                    </>
+                  ) : (
+                    '—'
                   )}
                 </TableCell>
                 <TableCell>
@@ -242,6 +264,26 @@ function NpcFormDialog({
   const [isHostile, setIsHostile] = useState(npc?.isHostile ?? false)
   const [notes, setNotes] = useState(npc?.notes ?? '')
   const [race, setRace] = useState<Race>('human')
+  const [statBlock, setStatBlock] = useState<StatBlock | null>(
+    npc?.statBlock ?? null,
+  )
+  const [monsterSearch, setMonsterSearch] = useState('')
+  const [submittedSearch, setSubmittedSearch] = useState('')
+
+  const monstersQuery = useQuery({
+    queryKey: ['srd-monsters', submittedSearch],
+    queryFn: () => searchMonsters(submittedSearch),
+    enabled: submittedSearch.length > 0,
+  })
+
+  const statBlockMutation = useMutation({
+    mutationFn: fetchStatBlock,
+    onSuccess: (block) => {
+      setStatBlock(block)
+      setMonsterSearch('')
+      setSubmittedSearch('')
+    },
+  })
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault()
@@ -252,12 +294,13 @@ function NpcFormDialog({
       level,
       isHostile,
       notes: notes.trim() || null,
+      statBlock,
     })
   }
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{npc ? `Edit ${npc.name}` : 'Add NPC'}</DialogTitle>
           <DialogDescription>
@@ -348,6 +391,98 @@ function NpcFormDialog({
               onCheckedChange={(checked) => setIsHostile(checked === true)}
             />
             <Label htmlFor="npc-hostile">Hostile toward players</Label>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="npc-monster">Stat block (5e SRD)</Label>
+            {statBlock ? (
+              <div className="space-y-1 rounded-md border p-3 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">
+                    {statBlock.monsterName}
+                    <span className="text-muted-foreground">
+                      {' '}
+                      — {statBlock.size} {statBlock.type}, CR{' '}
+                      {formatChallengeRating(statBlock.challengeRating)}
+                    </span>
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setStatBlock(null)}
+                  >
+                    Remove
+                  </Button>
+                </div>
+                <p className="text-muted-foreground">
+                  AC {statBlock.armorClass} · HP {statBlock.hitPoints} · Speed{' '}
+                  {statBlock.speed}
+                </p>
+                <p className="text-muted-foreground">
+                  STR {statBlock.strength} · DEX {statBlock.dexterity} · CON{' '}
+                  {statBlock.constitution} · INT {statBlock.intelligence} · WIS{' '}
+                  {statBlock.wisdom} · CHA {statBlock.charisma}
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="npc-monster"
+                    value={monsterSearch}
+                    onChange={(e) => setMonsterSearch(e.target.value)}
+                    placeholder="Search monsters — goblin, mage, …"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        setSubmittedSearch(monsterSearch.trim())
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setSubmittedSearch(monsterSearch.trim())}
+                  >
+                    Search
+                  </Button>
+                </div>
+                {monstersQuery.isFetching && (
+                  <p className="text-sm text-muted-foreground">Searching…</p>
+                )}
+                {monstersQuery.isError && (
+                  <p className="text-sm text-destructive">
+                    {monstersQuery.error.message}
+                  </p>
+                )}
+                {monstersQuery.isSuccess && monstersQuery.data.length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    No monsters matched.
+                  </p>
+                )}
+                {monstersQuery.isSuccess && monstersQuery.data.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {monstersQuery.data.slice(0, 8).map((monster) => (
+                      <Button
+                        key={monster.index}
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        disabled={statBlockMutation.isPending}
+                        onClick={() => statBlockMutation.mutate(monster.index)}
+                      >
+                        {monster.name}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+                {statBlockMutation.isError && (
+                  <p className="text-sm text-destructive">
+                    {statBlockMutation.error.message}
+                  </p>
+                )}
+              </>
+            )}
           </div>
           {error && <p className="text-sm text-destructive">{error.message}</p>}
           <DialogFooter>
