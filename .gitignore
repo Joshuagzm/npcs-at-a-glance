@@ -14,3 +14,7 @@ frontend/dist/
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# Browser-verification artifacts
+.playwright-mcp/
+*.png

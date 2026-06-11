@@ -15,6 +15,13 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   Table,
   TableBody,
   TableCell,
@@ -31,6 +38,12 @@ import {
   type Npc,
   type NpcInput,
 } from '@/lib/api'
+import {
+  generateName,
+  RACE_LABELS,
+  RACES,
+  type Race,
+} from '@/lib/nameGenerator'
 
 export const Route = createFileRoute('/npcs')({
   component: NpcsPage,
@@ -228,6 +241,7 @@ function NpcFormDialog({
   const [level, setLevel] = useState(npc?.level ?? 1)
   const [isHostile, setIsHostile] = useState(npc?.isHostile ?? false)
   const [notes, setNotes] = useState(npc?.notes ?? '')
+  const [race, setRace] = useState<Race>('human')
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault()
@@ -271,6 +285,30 @@ function NpcFormDialog({
                 required
               />
             </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Select
+              value={race}
+              onValueChange={(value) => setRace(value as Race)}
+            >
+              <SelectTrigger className="w-44" aria-label="Race for random name">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {RACES.map((r) => (
+                  <SelectItem key={r} value={r}>
+                    {RACE_LABELS[r]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setName(generateName(race))}
+            >
+              Random name
+            </Button>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
