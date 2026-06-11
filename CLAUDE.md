@@ -18,6 +18,7 @@ yarn dev          # dev server on :5173
 yarn build        # tsc -b && vite build — type-check + production build
 yarn lint         # ESLint
 yarn format       # Prettier --write
+yarn test         # Vitest (jsdom), test files live beside source (*.test.ts)
 ```
 
 Backend (run from `backend/`):
@@ -27,7 +28,7 @@ dotnet build NpcManagement.slnx                               # note: .slnx, not
 dotnet run --project NpcManagement.Api --launch-profile http  # serves :5000
 ```
 
-There are no tests yet in either half.
+The backend has no tests yet.
 
 ## Backend architecture
 
