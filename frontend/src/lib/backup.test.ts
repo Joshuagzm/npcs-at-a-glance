@@ -29,6 +29,9 @@ function makeNpc(overrides: Partial<Npc> = {}): Npc {
     level: 12,
     isHostile: false,
     notes: null,
+    likes: 'Well-forged steel',
+    dislikes: 'Elves',
+    goals: null,
     statBlock: {
       monsterName: 'Goblin',
       size: 'Small',

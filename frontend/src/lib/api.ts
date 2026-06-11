@@ -25,22 +25,28 @@ export interface StatBlock {
 export interface Npc {
   id: string
   name: string
-  role: string
+  role: string | null
   location: string | null
   level: number
   isHostile: boolean
   notes: string | null
+  likes: string | null
+  dislikes: string | null
+  goals: string | null
   statBlock: StatBlock | null
   createdAt: string
 }
 
 export interface NpcInput {
   name: string
-  role: string
+  role: string | null
   location: string | null
   level: number
   isHostile: boolean
   notes: string | null
+  likes: string | null
+  dislikes: string | null
+  goals: string | null
   statBlock: StatBlock | null
 }
 

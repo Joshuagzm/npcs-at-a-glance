@@ -236,6 +236,7 @@ function NpcsPage() {
               <TableHead>Location</TableHead>
               <TableHead className="text-right">Level</TableHead>
               <TableHead>Disposition</TableHead>
+              <TableHead>Personality</TableHead>
               <TableHead>Stat block</TableHead>
               <TableHead className="w-0" />
             </TableRow>
@@ -251,7 +252,7 @@ function NpcsPage() {
                     </p>
                   )}
                 </TableCell>
-                <TableCell>{npc.role}</TableCell>
+                <TableCell>{npc.role ?? '—'}</TableCell>
                 <TableCell>{npc.location ?? '—'}</TableCell>
                 <TableCell className="text-right">{npc.level}</TableCell>
                 <TableCell>
@@ -259,6 +260,34 @@ function NpcsPage() {
                     <Badge variant="destructive">Hostile</Badge>
                   ) : (
                     <Badge variant="secondary">Friendly</Badge>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {npc.likes || npc.dislikes || npc.goals ? (
+                    <div className="max-w-56 space-y-0.5 text-xs">
+                      {npc.likes && (
+                        <p className="truncate">
+                          <span className="text-muted-foreground">Likes:</span>{' '}
+                          {npc.likes}
+                        </p>
+                      )}
+                      {npc.dislikes && (
+                        <p className="truncate">
+                          <span className="text-muted-foreground">
+                            Dislikes:
+                          </span>{' '}
+                          {npc.dislikes}
+                        </p>
+                      )}
+                      {npc.goals && (
+                        <p className="truncate">
+                          <span className="text-muted-foreground">Goals:</span>{' '}
+                          {npc.goals}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    '—'
                   )}
                 </TableCell>
                 <TableCell>
@@ -350,6 +379,9 @@ function NpcFormDialog({
   const [level, setLevel] = useState(npc?.level ?? 1)
   const [isHostile, setIsHostile] = useState(npc?.isHostile ?? false)
   const [notes, setNotes] = useState(npc?.notes ?? '')
+  const [likes, setLikes] = useState(npc?.likes ?? '')
+  const [dislikes, setDislikes] = useState(npc?.dislikes ?? '')
+  const [goals, setGoals] = useState(npc?.goals ?? '')
   const [race, setRace] = useState<Race>('human')
   const [statBlock, setStatBlock] = useState<StatBlock | null>(
     npc?.statBlock ?? null,
@@ -376,11 +408,14 @@ function NpcFormDialog({
     event.preventDefault()
     onSubmit({
       name: name.trim(),
-      role: role.trim(),
+      role: role.trim() || null,
       location: location.trim() || null,
       level,
       isHostile,
       notes: notes.trim() || null,
+      likes: likes.trim() || null,
+      dislikes: dislikes.trim() || null,
+      goals: goals.trim() || null,
       statBlock,
     })
   }
@@ -418,7 +453,6 @@ function NpcFormDialog({
                     value={role}
                     onChange={(e) => setRole(e.target.value)}
                     placeholder="Merchant, Guard, …"
-                    required
                   />
                 </div>
               </div>
@@ -478,6 +512,38 @@ function NpcFormDialog({
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   rows={3}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="npc-likes">Likes</Label>
+                  <Textarea
+                    id="npc-likes"
+                    value={likes}
+                    onChange={(e) => setLikes(e.target.value)}
+                    rows={2}
+                    placeholder="Fine ale, gossip, …"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="npc-dislikes">Dislikes</Label>
+                  <Textarea
+                    id="npc-dislikes"
+                    value={dislikes}
+                    onChange={(e) => setDislikes(e.target.value)}
+                    rows={2}
+                    placeholder="Nobles, loud noises, …"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="npc-goals">Goals</Label>
+                <Textarea
+                  id="npc-goals"
+                  value={goals}
+                  onChange={(e) => setGoals(e.target.value)}
+                  rows={2}
+                  placeholder="What does this character want?"
                 />
               </div>
               <div className="flex items-center gap-2">

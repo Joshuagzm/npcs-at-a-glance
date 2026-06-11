@@ -61,6 +61,9 @@ export function toInput(npc: Npc): NpcInput {
     level: npc.level,
     isHostile: npc.isHostile,
     notes: npc.notes,
+    likes: npc.likes ?? null,
+    dislikes: npc.dislikes ?? null,
+    goals: npc.goals ?? null,
     statBlock: npc.statBlock,
   }
 }
@@ -72,7 +75,9 @@ function fingerprint(npcs: Npc[]): string {
     npcs
       .map(toInput)
       .sort(
-        (a, b) => a.name.localeCompare(b.name) || a.role.localeCompare(b.role),
+        (a, b) =>
+          a.name.localeCompare(b.name) ||
+          (a.role ?? '').localeCompare(b.role ?? ''),
       ),
   )
 }

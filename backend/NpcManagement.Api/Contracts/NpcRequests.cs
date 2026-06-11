@@ -26,18 +26,24 @@ public record StatBlockRequest(
 
 public record CreateNpcRequest(
     [Required] string Name,
-    [Required] string Role,
-    string? Location,
+    string? Role = null,
+    string? Location = null,
     [Range(1, 100)] int Level = 1,
     bool IsHostile = false,
     string? Notes = null,
+    string? Likes = null,
+    string? Dislikes = null,
+    string? Goals = null,
     StatBlockRequest? StatBlock = null);
 
 public record UpdateNpcRequest(
     [Required] string Name,
-    [Required] string Role,
+    string? Role,
     string? Location,
     [Range(1, 100)] int Level,
     bool IsHostile,
     string? Notes,
+    string? Likes,
+    string? Dislikes,
+    string? Goals,
     StatBlockRequest? StatBlock);

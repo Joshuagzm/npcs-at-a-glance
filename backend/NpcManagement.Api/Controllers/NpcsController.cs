@@ -41,6 +41,9 @@ public class NpcsController : ControllerBase
             Level = request.Level,
             IsHostile = request.IsHostile,
             Notes = request.Notes,
+            Likes = request.Likes,
+            Dislikes = request.Dislikes,
+            Goals = request.Goals,
             StatBlock = ToStatBlock(request.StatBlock),
         };
 
@@ -63,6 +66,9 @@ public class NpcsController : ControllerBase
         existing.Level = request.Level;
         existing.IsHostile = request.IsHostile;
         existing.Notes = request.Notes;
+        existing.Likes = request.Likes;
+        existing.Dislikes = request.Dislikes;
+        existing.Goals = request.Goals;
         existing.StatBlock = ToStatBlock(request.StatBlock);
 
         var updated = await _npcRepository.UpdateAsync(existing, cancellationToken);
