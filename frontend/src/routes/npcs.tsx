@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Badge } from '@/components/ui/badge'
@@ -39,6 +39,12 @@ import {
   type NpcInput,
   type StatBlock,
 } from '@/lib/api'
+import {
+  hasUnsavedChanges,
+  loadBackup,
+  restoreBackup,
+  saveBackup,
+} from '@/lib/backup'
 import {
   fetchStatBlock,
   formatChallengeRating,
@@ -91,6 +97,27 @@ function NpcsPage() {
     onSuccess: invalidate,
   })
 
+  const [backup, setBackup] = useState(loadBackup)
+
+  const restoreMutation = useMutation({
+    mutationFn: restoreBackup,
+    onSuccess: invalidate,
+  })
+
+  const unsaved =
+    npcsQuery.isSuccess && hasUnsavedChanges(npcsQuery.data, backup)
+
+  useEffect(() => {
+    if (!unsaved) return
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      // Required by older browsers for the prompt to appear.
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [unsaved])
+
   const handleSubmit = (input: NpcInput) => {
     if (editing) {
       updateMutation.mutate({ id: editing.id, input })
@@ -113,15 +140,54 @@ function NpcsPage() {
             Everyone your players might meet.
           </p>
         </div>
-        <Button
-          onClick={() => {
-            setEditing(null)
-            setDialogOpen(true)
-          }}
-        >
-          Add NPC
-        </Button>
+        <div className="flex items-center gap-2">
+          {unsaved && <Badge variant="outline">Unsaved changes</Badge>}
+          <Button
+            variant="outline"
+            disabled={!npcsQuery.isSuccess}
+            onClick={() => setBackup(saveBackup(npcsQuery.data ?? []))}
+          >
+            Save backup
+          </Button>
+          <Button
+            variant="outline"
+            disabled={!backup || restoreMutation.isPending}
+            title={
+              backup
+                ? `Saved ${new Date(backup.savedAt).toLocaleString()}`
+                : 'No backup saved yet'
+            }
+            onClick={() => {
+              if (
+                backup &&
+                confirm(
+                  `Replace the current NPCs with the backup saved ${new Date(
+                    backup.savedAt,
+                  ).toLocaleString()}?`,
+                )
+              ) {
+                restoreMutation.mutate(backup)
+              }
+            }}
+          >
+            {restoreMutation.isPending ? 'Loading…' : 'Load backup'}
+          </Button>
+          <Button
+            onClick={() => {
+              setEditing(null)
+              setDialogOpen(true)
+            }}
+          >
+            Add NPC
+          </Button>
+        </div>
       </div>
+
+      {restoreMutation.isError && (
+        <p className="text-destructive">
+          Failed to load backup: {restoreMutation.error.message}
+        </p>
+      )}
 
       {npcsQuery.isPending && (
         <p className="text-muted-foreground">Loading NPCs…</p>
