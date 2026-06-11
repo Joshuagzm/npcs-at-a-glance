@@ -1,3 +1,8 @@
+export interface StatBlockEntry {
+  name: string
+  description: string
+}
+
 export interface StatBlock {
   monsterName: string
   size: string
@@ -13,6 +18,8 @@ export interface StatBlock {
   charisma: number
   challengeRating: number
   flavorText: string | null
+  traits: StatBlockEntry[]
+  actions: StatBlockEntry[]
 }
 
 export interface Npc {

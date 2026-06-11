@@ -1,4 +1,4 @@
-import type { StatBlock } from './api'
+import type { StatBlock, StatBlockEntry } from './api'
 
 // D&D 5e SRD content served by the free dnd5eapi.co API (CC-BY-4.0).
 const SRD_BASE = 'https://www.dnd5eapi.co/api/2014'
@@ -28,6 +28,8 @@ interface LocalMonster {
   charisma: number
   challengeRating: number
   flavorText: string | null
+  traits: StatBlockEntry[]
+  actions: StatBlockEntry[]
 }
 
 let localMonstersPromise: Promise<Map<string, StatBlock> | null> | null = null
@@ -55,6 +57,8 @@ function loadLocalMonsters(): Promise<Map<string, StatBlock> | null> {
             charisma: m.charisma,
             challengeRating: m.challengeRating,
             flavorText: m.flavorText,
+            traits: m.traits ?? [],
+            actions: m.actions ?? [],
           },
         ]),
       )
@@ -102,6 +106,16 @@ interface SrdMonster {
   charisma: number
   challenge_rating: number
   desc?: string
+  special_abilities?: { name: string; desc: string }[]
+  actions?: { name: string; desc: string }[]
+}
+
+function toEntries(
+  items: { name: string; desc: string }[] | undefined,
+): StatBlockEntry[] {
+  return (items ?? [])
+    .filter((item) => item.name && item.desc)
+    .map((item) => ({ name: item.name, description: item.desc }))
 }
 
 export async function fetchStatBlock(index: string): Promise<StatBlock> {
@@ -145,6 +159,8 @@ export async function fetchStatBlock(index: string): Promise<StatBlock> {
     charisma: monster.charisma,
     challengeRating: monster.challenge_rating,
     flavorText: monster.desc ?? null,
+    traits: toEntries(monster.special_abilities),
+    actions: toEntries(monster.actions),
   }
 }
 

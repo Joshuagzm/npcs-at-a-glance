@@ -16,4 +16,12 @@ public class NpcStatBlock
     public int Charisma { get; set; }
     public double ChallengeRating { get; set; }
     public string? FlavorText { get; set; }
+    public List<StatBlockEntry> Traits { get; set; } = [];
+    public List<StatBlockEntry> Actions { get; set; } = [];
+}
+
+public class StatBlockEntry
+{
+    public required string Name { get; set; }
+    public required string Description { get; set; }
 }

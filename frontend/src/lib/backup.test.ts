@@ -44,6 +44,20 @@ function makeNpc(overrides: Partial<Npc> = {}): Npc {
       charisma: 8,
       challengeRating: 0.25,
       flavorText: 'Small, black-hearted, selfish humanoids.',
+      traits: [
+        {
+          name: 'Nimble Escape',
+          description:
+            'The goblin can take the Disengage or Hide action as a bonus action.',
+        },
+      ],
+      actions: [
+        {
+          name: 'Scimitar',
+          description:
+            'Melee Weapon Attack: +4 to hit, reach 5 ft., one target.',
+        },
+      ],
     },
     createdAt: '2026-06-11T00:00:00Z',
     ...overrides,

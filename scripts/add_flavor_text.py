@@ -1,4 +1,5 @@
-"""Attach Monster Manual lore ("flavor text") to dataset entries.
+"""Attach Monster Manual lore ("flavor text"), traits, and actions
+to dataset entries.
 
 Works on the paragraph-oriented extraction (extract_mm_paragraphs.py).
 For each monster parsed from the PDF we know its page; this script
@@ -66,6 +67,54 @@ def clean(text: str) -> str:
     return text.strip()
 
 
+# Trait/action paragraphs look like "Trait Name. Sentence..." - the
+# same shape the lore filter excludes.
+ENTRY_RE = re.compile(
+    r"^((?:[A-Z][\w'()/-]*\s+){0,4}[A-Z][\w'()/-]*)\s*\.\s+"
+    r"((?:The|If|When|While|As|A|An|Each|Any|On|Melee|Ranged|Until|In|At)\b.+)",
+    re.DOTALL,
+)
+ACTION_HINTS = re.compile(
+    r"Weapon Attack:|\bHit:|^Multiattack\b|Recharge|saving throw.*on a failed",
+    re.IGNORECASE,
+)
+
+
+def extract_entries(
+    name: str, pages: dict[int, list[str]], page: int
+) -> tuple[list[dict], list[dict]]:
+    """Trait and action paragraphs near the stat block that mention
+    the monster. OCR noise means this is best-effort: only well-formed
+    "Name. Description" paragraphs with a name mention are kept."""
+    tokens = name_tokens(name)
+    traits: list[dict] = []
+    actions: list[dict] = []
+    seen: set[str] = set()
+    for p in range(page, page + 2):
+        for paragraph in pages.get(p, []):
+            if len(paragraph) < 60 or not any(
+                t in paragraph.lower() for t in tokens
+            ):
+                continue
+            m = ENTRY_RE.match(clean(paragraph))
+            if not m:
+                continue
+            entry_name, description = m.group(1), m.group(2)
+            if len(entry_name) > 40 or len(description) < 40:
+                continue
+            if entry_name.lower() in seen:
+                continue
+            seen.add(entry_name.lower())
+            entry = {"name": entry_name, "description": description[:600]}
+            if entry_name.lower() == "multiattack" or ACTION_HINTS.search(
+                description
+            ):
+                actions.append(entry)
+            else:
+                traits.append(entry)
+    return traits, actions
+
+
 GENERIC_NAME_WORDS = {"adult", "young", "ancient", "giant", "swarm", "form"}
 
 
@@ -117,24 +166,41 @@ def main() -> None:
 
     monsters = json.load(open(dataset_path, encoding="utf-8"))
     attached = 0
+    entries_attached = 0
     for monster in monsters:
-        if monster.get("flavorText"):
-            continue
         page = monster.get("page")
-        if page is None:
-            monster.setdefault("flavorText", None)
-            continue
-        lore = monster_lore(monster["name"], pages, page)
-        monster["flavorText"] = lore
-        if lore:
-            attached += 1
+        if not monster.get("flavorText"):
+            if page is None:
+                monster.setdefault("flavorText", None)
+            else:
+                lore = monster_lore(monster["name"], pages, page)
+                monster["flavorText"] = lore
+                if lore:
+                    attached += 1
+        # SRD entries already carry clean traits/actions; mine the OCR
+        # only for pdf-only blocks that have none.
+        if page is not None and not (
+            monster.get("traits") or monster.get("actions")
+        ):
+            traits, actions = extract_entries(monster["name"], pages, page)
+            monster["traits"] = traits
+            monster["actions"] = actions
+            if traits or actions:
+                entries_attached += 1
+        monster.setdefault("traits", [])
+        monster.setdefault("actions", [])
 
     json.dump(monsters, open(dataset_path, "w", encoding="utf-8"), indent=2)
     total = len(monsters)
     with_flavor = sum(1 for m in monsters if m.get("flavorText"))
+    with_entries = sum(
+        1 for m in monsters if m.get("traits") or m.get("actions")
+    )
     print(
         f"attached lore to {attached} monsters; "
-        f"{with_flavor}/{total} have flavor text"
+        f"{with_flavor}/{total} have flavor text; "
+        f"OCR traits/actions for {entries_attached}; "
+        f"{with_entries}/{total} have traits or actions"
     )
 
 

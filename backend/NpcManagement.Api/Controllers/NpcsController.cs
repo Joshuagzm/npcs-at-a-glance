@@ -88,7 +88,19 @@ public class NpcsController : ControllerBase
                 Charisma = request.Charisma,
                 ChallengeRating = request.ChallengeRating,
                 FlavorText = request.FlavorText,
+                Traits = ToEntries(request.Traits),
+                Actions = ToEntries(request.Actions),
             };
+
+    private static List<StatBlockEntry> ToEntries(
+        List<StatBlockEntryRequest>? requests) =>
+        requests?
+            .Select(r => new StatBlockEntry
+            {
+                Name = r.Name,
+                Description = r.Description,
+            })
+            .ToList() ?? [];
 
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)

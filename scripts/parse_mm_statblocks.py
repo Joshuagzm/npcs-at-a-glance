@@ -165,8 +165,21 @@ def load_srd(path: str):
                 "flavorText": " ".join(m["desc"])
                 if isinstance(m.get("desc"), list)
                 else (m.get("desc") or None),
+                "traits": srd_entries(m.get("special_abilities")),
+                "actions": srd_entries(m.get("actions")),
             }
         )
+    return entries
+
+
+def srd_entries(items) -> list:
+    entries = []
+    for item in items or []:
+        desc = item.get("desc")
+        if isinstance(desc, list):
+            desc = " ".join(desc)
+        if item.get("name") and desc:
+            entries.append({"name": item["name"], "description": desc})
     return entries
 
 
@@ -266,13 +279,15 @@ def main() -> None:
                         "charisma": block["cha"],
                         "challengeRating": block["challengeRating"],
                         "flavorText": None,
+                        "traits": [],
+                        "actions": [],
                         "source": f"pdf-page-{block['page']}",
                         "page": block["page"],
                     }
                 )
 
     for entry in curation.get("additions", []):
-        results.append({**entry, "source": "manual"})
+        results.append({"traits": [], "actions": [], **entry, "source": "manual"})
 
     # The PDF's last third (pages 268-380) lost its text layer to file
     # truncation; fill those gaps with SRD monsters not already present.

@@ -385,6 +385,10 @@ function NpcFormDialog({
     })
   }
 
+  // Older saved NPCs predate traits/actions on the stat block.
+  const statBlockTraits = statBlock?.traits ?? []
+  const statBlockActions = statBlock?.actions ?? []
+
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent className="max-h-[90vh] w-1/2 max-w-none overflow-y-auto sm:max-w-none">
@@ -395,186 +399,237 @@ function NpcFormDialog({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="npc-name">Name</Label>
-              <Input
-                id="npc-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="npc-role">Role</Label>
-              <Input
-                id="npc-role"
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                placeholder="Merchant, Guard, …"
-                required
-              />
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Select
-              value={race}
-              onValueChange={(value) => setRace(value as Race)}
-            >
-              <SelectTrigger className="w-44" aria-label="Race for random name">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {RACES.map((r) => (
-                  <SelectItem key={r} value={r}>
-                    {RACE_LABELS[r]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setName(generateName(race))}
-            >
-              Random name
-            </Button>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="npc-location">Location</Label>
-              <Input
-                id="npc-location"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="npc-level">Level (1–100)</Label>
-              <Input
-                id="npc-level"
-                type="number"
-                min={1}
-                max={100}
-                value={level}
-                onChange={(e) => setLevel(Number(e.target.value))}
-                required
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="npc-notes">Notes</Label>
-            <Textarea
-              id="npc-notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={3}
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="npc-hostile"
-              checked={isHostile}
-              onCheckedChange={(checked) => setIsHostile(checked === true)}
-            />
-            <Label htmlFor="npc-hostile">Hostile toward players</Label>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="npc-monster">Stat block (5e SRD)</Label>
-            {statBlock ? (
-              <div className="space-y-1 rounded-md border p-3 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium">
-                    {statBlock.monsterName}
-                    <span className="text-muted-foreground">
-                      {' '}
-                      — {statBlock.size} {statBlock.type}, CR{' '}
-                      {formatChallengeRating(statBlock.challengeRating)}
-                    </span>
-                  </span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setStatBlock(null)}
-                  >
-                    Remove
-                  </Button>
-                </div>
-                <p className="text-muted-foreground">
-                  AC {statBlock.armorClass} · HP {statBlock.hitPoints} · Speed{' '}
-                  {statBlock.speed}
-                </p>
-                <p className="text-muted-foreground">
-                  STR {statBlock.strength} · DEX {statBlock.dexterity} · CON{' '}
-                  {statBlock.constitution} · INT {statBlock.intelligence} · WIS{' '}
-                  {statBlock.wisdom} · CHA {statBlock.charisma}
-                </p>
-                {statBlock.flavorText && (
-                  <p className="max-h-24 overflow-y-auto border-t pt-1 text-xs text-muted-foreground italic">
-                    {statBlock.flavorText}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <>
-                <div className="flex items-center gap-2">
+          <div className="grid grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="npc-name">Name</Label>
                   <Input
-                    id="npc-monster"
-                    value={monsterSearch}
-                    onChange={(e) => setMonsterSearch(e.target.value)}
-                    placeholder="Search monsters — goblin, mage, …"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault()
-                        setSubmittedSearch(monsterSearch.trim())
-                      }
-                    }}
+                    id="npc-name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
                   />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setSubmittedSearch(monsterSearch.trim())}
-                  >
-                    Search
-                  </Button>
                 </div>
-                {monstersQuery.isFetching && (
-                  <p className="text-sm text-muted-foreground">Searching…</p>
-                )}
-                {monstersQuery.isError && (
-                  <p className="text-sm text-destructive">
-                    {monstersQuery.error.message}
-                  </p>
-                )}
-                {monstersQuery.isSuccess && monstersQuery.data.length === 0 && (
-                  <p className="text-sm text-muted-foreground">
-                    No monsters matched.
-                  </p>
-                )}
-                {monstersQuery.isSuccess && monstersQuery.data.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {monstersQuery.data.slice(0, 8).map((monster) => (
-                      <Button
-                        key={monster.index}
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        disabled={statBlockMutation.isPending}
-                        onClick={() => statBlockMutation.mutate(monster.index)}
-                      >
-                        {monster.name}
-                      </Button>
+                <div className="space-y-2">
+                  <Label htmlFor="npc-role">Role</Label>
+                  <Input
+                    id="npc-role"
+                    value={role}
+                    onChange={(e) => setRole(e.target.value)}
+                    placeholder="Merchant, Guard, …"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Select
+                  value={race}
+                  onValueChange={(value) => setRace(value as Race)}
+                >
+                  <SelectTrigger
+                    className="w-44"
+                    aria-label="Race for random name"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {RACES.map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {RACE_LABELS[r]}
+                      </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setName(generateName(race))}
+                >
+                  Random name
+                </Button>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="npc-location">Location</Label>
+                  <Input
+                    id="npc-location"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="npc-level">Level (1–100)</Label>
+                  <Input
+                    id="npc-level"
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={level}
+                    onChange={(e) => setLevel(Number(e.target.value))}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="npc-notes">Notes</Label>
+                <Textarea
+                  id="npc-notes"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={3}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="npc-hostile"
+                  checked={isHostile}
+                  onCheckedChange={(checked) => setIsHostile(checked === true)}
+                />
+                <Label htmlFor="npc-hostile">Hostile toward players</Label>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="npc-monster">Stat block (5e SRD)</Label>
+              {statBlock ? (
+                <div className="space-y-1 rounded-md border p-3 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">
+                      {statBlock.monsterName}
+                      <span className="text-muted-foreground">
+                        {' '}
+                        — {statBlock.size} {statBlock.type}, CR{' '}
+                        {formatChallengeRating(statBlock.challengeRating)}
+                      </span>
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setStatBlock(null)}
+                    >
+                      Remove
+                    </Button>
                   </div>
-                )}
-                {statBlockMutation.isError && (
-                  <p className="text-sm text-destructive">
-                    {statBlockMutation.error.message}
+                  <p className="text-muted-foreground">
+                    AC {statBlock.armorClass} · HP {statBlock.hitPoints} · Speed{' '}
+                    {statBlock.speed}
                   </p>
-                )}
-              </>
-            )}
+                  <p className="text-muted-foreground">
+                    STR {statBlock.strength} · DEX {statBlock.dexterity} · CON{' '}
+                    {statBlock.constitution} · INT {statBlock.intelligence} ·
+                    WIS {statBlock.wisdom} · CHA {statBlock.charisma}
+                  </p>
+                  {statBlock.flavorText && (
+                    <p className="max-h-24 overflow-y-auto border-t pt-1 text-xs text-muted-foreground italic">
+                      {statBlock.flavorText}
+                    </p>
+                  )}
+                  {(statBlockTraits.length > 0 ||
+                    statBlockActions.length > 0) && (
+                    <div className="max-h-80 space-y-3 overflow-y-auto border-t pt-2">
+                      {statBlockTraits.length > 0 && (
+                        <div className="space-y-1">
+                          <p className="text-xs font-semibold tracking-wide uppercase">
+                            Traits
+                          </p>
+                          {statBlockTraits.map((trait) => (
+                            <p
+                              key={trait.name}
+                              className="text-xs text-muted-foreground"
+                            >
+                              <span className="font-medium text-foreground">
+                                {trait.name}.
+                              </span>{' '}
+                              {trait.description}
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                      {statBlockActions.length > 0 && (
+                        <div className="space-y-1">
+                          <p className="text-xs font-semibold tracking-wide uppercase">
+                            Actions
+                          </p>
+                          {statBlockActions.map((action) => (
+                            <p
+                              key={action.name}
+                              className="text-xs text-muted-foreground"
+                            >
+                              <span className="font-medium text-foreground">
+                                {action.name}.
+                              </span>{' '}
+                              {action.description}
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="npc-monster"
+                      value={monsterSearch}
+                      onChange={(e) => setMonsterSearch(e.target.value)}
+                      placeholder="Search monsters — goblin, mage, …"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          setSubmittedSearch(monsterSearch.trim())
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setSubmittedSearch(monsterSearch.trim())}
+                    >
+                      Search
+                    </Button>
+                  </div>
+                  {monstersQuery.isFetching && (
+                    <p className="text-sm text-muted-foreground">Searching…</p>
+                  )}
+                  {monstersQuery.isError && (
+                    <p className="text-sm text-destructive">
+                      {monstersQuery.error.message}
+                    </p>
+                  )}
+                  {monstersQuery.isSuccess &&
+                    monstersQuery.data.length === 0 && (
+                      <p className="text-sm text-muted-foreground">
+                        No monsters matched.
+                      </p>
+                    )}
+                  {monstersQuery.isSuccess && monstersQuery.data.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {monstersQuery.data.slice(0, 8).map((monster) => (
+                        <Button
+                          key={monster.index}
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          disabled={statBlockMutation.isPending}
+                          onClick={() =>
+                            statBlockMutation.mutate(monster.index)
+                          }
+                        >
+                          {monster.name}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                  {statBlockMutation.isError && (
+                    <p className="text-sm text-destructive">
+                      {statBlockMutation.error.message}
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
           </div>
           {error && <p className="text-sm text-destructive">{error.message}</p>}
           <DialogFooter>

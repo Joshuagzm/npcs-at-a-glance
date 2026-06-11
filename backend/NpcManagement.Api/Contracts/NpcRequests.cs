@@ -2,6 +2,10 @@ using System.ComponentModel.DataAnnotations;
 
 namespace NpcManagement.Api.Contracts;
 
+public record StatBlockEntryRequest(
+    [Required] string Name,
+    [Required] string Description);
+
 public record StatBlockRequest(
     [Required] string MonsterName,
     [Required] string Size,
@@ -16,7 +20,9 @@ public record StatBlockRequest(
     [Range(1, 30)] int Wisdom,
     [Range(1, 30)] int Charisma,
     [Range(0, 30)] double ChallengeRating,
-    string? FlavorText = null);
+    string? FlavorText = null,
+    List<StatBlockEntryRequest>? Traits = null,
+    List<StatBlockEntryRequest>? Actions = null);
 
 public record CreateNpcRequest(
     [Required] string Name,
