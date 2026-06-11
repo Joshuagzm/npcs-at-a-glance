@@ -16,6 +16,12 @@ function RootLayout() {
           >
             Home
           </Link>
+          <Link
+            to="/npcs"
+            className="text-sm text-muted-foreground hover:text-foreground [&.active]:text-foreground"
+          >
+            NPCs
+          </Link>
         </nav>
       </header>
       <main className="mx-auto max-w-5xl px-6 py-8">
