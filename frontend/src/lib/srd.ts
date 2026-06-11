@@ -3,12 +3,64 @@ import type { StatBlock } from './api'
 // D&D 5e SRD content served by the free dnd5eapi.co API (CC-BY-4.0).
 const SRD_BASE = 'https://www.dnd5eapi.co/api/2014'
 
+// Optional local dataset extracted from a personal Monster Manual copy
+// (see scripts/parse_mm_statblocks.py). Gitignored; when absent the
+// picker falls back to the SRD API.
+const LOCAL_DATASET_URL = '/monster-manual.json'
+
 export interface MonsterSummary {
   index: string
   name: string
 }
 
+interface LocalMonster {
+  name: string
+  size: string
+  type: string
+  armorClass: number
+  hitPoints: number
+  speed: string
+  strength: number
+  dexterity: number
+  constitution: number
+  intelligence: number
+  wisdom: number
+  charisma: number
+  challengeRating: number
+}
+
+let localMonstersPromise: Promise<Map<string, StatBlock> | null> | null = null
+
+function loadLocalMonsters(): Promise<Map<string, StatBlock> | null> {
+  localMonstersPromise ??= fetch(LOCAL_DATASET_URL)
+    .then(async (response) => {
+      if (!response.ok) return null
+      const monsters = (await response.json()) as LocalMonster[]
+      return new Map(
+        monsters.map(({ name, ...stats }) => [
+          name.toLowerCase(),
+          { monsterName: name, ...stats },
+        ]),
+      )
+    })
+    .catch(() => null)
+  return localMonstersPromise
+}
+
+const LOCAL_PREFIX = 'local:'
+
 export async function searchMonsters(name: string): Promise<MonsterSummary[]> {
+  const local = await loadLocalMonsters()
+  if (local) {
+    const query = name.toLowerCase()
+    return [...local.values()]
+      .filter((m) => m.monsterName.toLowerCase().includes(query))
+      .map((m) => ({
+        index: `${LOCAL_PREFIX}${m.monsterName.toLowerCase()}`,
+        name: m.monsterName,
+      }))
+  }
+
   const response = await fetch(
     `${SRD_BASE}/monsters?name=${encodeURIComponent(name)}`,
   )
@@ -36,6 +88,15 @@ interface SrdMonster {
 }
 
 export async function fetchStatBlock(index: string): Promise<StatBlock> {
+  if (index.startsWith(LOCAL_PREFIX)) {
+    const local = await loadLocalMonsters()
+    const block = local?.get(index.slice(LOCAL_PREFIX.length))
+    if (!block) {
+      throw new Error(`Monster not found in local dataset: ${index}`)
+    }
+    return block
+  }
+
   const response = await fetch(`${SRD_BASE}/monsters/${index}`)
   if (!response.ok) {
     throw new Error(`Monster lookup failed: ${response.status}`)
