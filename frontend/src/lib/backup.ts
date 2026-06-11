@@ -32,8 +32,25 @@ const FILE_TYPES = [
   },
 ]
 
+// A genuine user cancel is an AbortError - but so is the picker being
+// suppressed by browser automation (Playwright/CDP intercepts file
+// dialogs and rejects with "Intercepted by
+// Page.setInterceptFileChooserDialog()"). Only the former should be a
+// silent no-op; the latter falls back to the non-picker path.
 function isCancellation(error: unknown): boolean {
-  return error instanceof DOMException && error.name === 'AbortError'
+  return (
+    error instanceof DOMException &&
+    error.name === 'AbortError' &&
+    !error.message.includes('Intercepted')
+  )
+}
+
+function isPickerSuppressed(error: unknown): boolean {
+  return (
+    error instanceof DOMException &&
+    error.name === 'AbortError' &&
+    error.message.includes('Intercepted')
+  )
 }
 
 export function toInput(npc: Npc): NpcInput {
@@ -105,30 +122,31 @@ export async function saveBackupToFile(npcs: Npc[]): Promise<NpcBackup | null> {
 
   const picker = window as PickerWindow
   if (picker.showSaveFilePicker) {
-    let handle: BackupFileHandle
     try {
-      handle = await picker.showSaveFilePicker({
+      const handle = await picker.showSaveFilePicker({
         suggestedName,
         types: FILE_TYPES,
       })
+      const writable = await handle.createWritable()
+      await writable.write(json)
+      await writable.close()
+      return remember(backup)
     } catch (error) {
       if (isCancellation(error)) return null
-      throw error
+      if (!isPickerSuppressed(error)) throw error
+      // Picker blocked (automation): fall through to the download path.
     }
-    const writable = await handle.createWritable()
-    await writable.write(json)
-    await writable.close()
-  } else {
-    // No File System Access API (e.g. Firefox): download instead.
-    const url = URL.createObjectURL(
-      new Blob([json], { type: 'application/json' }),
-    )
-    const anchor = document.createElement('a')
-    anchor.href = url
-    anchor.download = suggestedName
-    anchor.click()
-    URL.revokeObjectURL(url)
   }
+
+  // No usable File System Access API (e.g. Firefox): download instead.
+  const url = URL.createObjectURL(
+    new Blob([json], { type: 'application/json' }),
+  )
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = suggestedName
+  anchor.click()
+  URL.revokeObjectURL(url)
   return remember(backup)
 }
 
@@ -136,15 +154,15 @@ export async function saveBackupToFile(npcs: Npc[]): Promise<NpcBackup | null> {
 export async function pickBackupFile(): Promise<NpcBackup | null> {
   const picker = window as PickerWindow
   if (picker.showOpenFilePicker) {
-    let handles: BackupFileHandle[]
     try {
-      handles = await picker.showOpenFilePicker({ types: FILE_TYPES })
+      const handles = await picker.showOpenFilePicker({ types: FILE_TYPES })
+      const file = await handles[0].getFile()
+      return parseBackup(await file.text())
     } catch (error) {
       if (isCancellation(error)) return null
-      throw error
+      if (!isPickerSuppressed(error)) throw error
+      // Picker blocked (automation): fall through to the file input.
     }
-    const file = await handles[0].getFile()
-    return parseBackup(await file.text())
   }
 
   // Fallback: a hidden file input still opens a file explorer dialog.

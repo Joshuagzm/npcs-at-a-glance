@@ -129,6 +129,28 @@ describe('saveBackupToFile', () => {
     expect(lastSavedBackup()).toBeNull()
   })
 
+  it('falls back to a download when automation suppresses the picker', async () => {
+    pickerWindow.showSaveFilePicker = vi.fn(async () => {
+      throw new DOMException(
+        "Failed to execute 'showSaveFilePicker' on 'Window': Intercepted by Page.setInterceptFileChooserDialog().",
+        'AbortError',
+      )
+    })
+    const createObjectURL = vi.fn(() => 'blob:fake')
+    vi.stubGlobal('URL', { ...URL, createObjectURL, revokeObjectURL: vi.fn() })
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => {})
+
+    const backup = await saveBackupToFile([makeNpc()])
+
+    expect(backup).not.toBeNull()
+    expect(click).toHaveBeenCalledOnce()
+    expect(lastSavedBackup()?.npcs).toHaveLength(1)
+
+    vi.unstubAllGlobals()
+  })
+
   it('falls back to a download when the picker API is unavailable', async () => {
     const createObjectURL = vi.fn(() => 'blob:fake')
     const revokeObjectURL = vi.fn()
@@ -169,6 +191,31 @@ describe('pickBackupFile', () => {
     })
 
     await expect(pickBackupFile()).resolves.toBeNull()
+  })
+
+  it('falls back to a file input when automation suppresses the picker', async () => {
+    pickerWindow.showOpenFilePicker = vi.fn(async () => {
+      throw new DOMException(
+        "Failed to execute 'showOpenFilePicker' on 'Window': Intercepted by Page.setInterceptFileChooserDialog().",
+        'AbortError',
+      )
+    })
+    const saved = makeBackup([makeNpc()])
+    const click = vi
+      .spyOn(HTMLInputElement.prototype, 'click')
+      .mockImplementation(function (this: HTMLInputElement) {
+        Object.defineProperty(this, 'files', {
+          value: [
+            new File([JSON.stringify(saved)], 'backup.json', {
+              type: 'application/json',
+            }),
+          ],
+        })
+        this.onchange?.(new Event('change'))
+      })
+
+    await expect(pickBackupFile()).resolves.toEqual(saved)
+    expect(click).toHaveBeenCalledOnce()
   })
 
   it('rejects a file that is not JSON', async () => {
