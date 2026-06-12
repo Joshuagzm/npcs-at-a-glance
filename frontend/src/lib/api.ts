@@ -33,6 +33,8 @@ export interface Npc {
   likes: string | null
   dislikes: string | null
   goals: string | null
+  currentHitPoints: number | null
+  maxHitPoints: number | null
   statBlock: StatBlock | null
   createdAt: string
 }
@@ -47,6 +49,8 @@ export interface NpcInput {
   likes: string | null
   dislikes: string | null
   goals: string | null
+  currentHitPoints: number | null
+  maxHitPoints: number | null
   statBlock: StatBlock | null
 }
 

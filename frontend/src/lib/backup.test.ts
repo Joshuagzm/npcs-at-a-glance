@@ -32,6 +32,8 @@ function makeNpc(overrides: Partial<Npc> = {}): Npc {
     likes: 'Well-forged steel',
     dislikes: 'Elves',
     goals: null,
+    currentHitPoints: 7,
+    maxHitPoints: 7,
     statBlock: {
       monsterName: 'Goblin',
       size: 'Small',

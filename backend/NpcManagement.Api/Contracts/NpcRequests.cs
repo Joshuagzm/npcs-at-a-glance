@@ -34,6 +34,8 @@ public record CreateNpcRequest(
     string? Likes = null,
     string? Dislikes = null,
     string? Goals = null,
+    [Range(0, 1000)] int? CurrentHitPoints = null,
+    [Range(1, 1000)] int? MaxHitPoints = null,
     StatBlockRequest? StatBlock = null);
 
 public record UpdateNpcRequest(
@@ -46,4 +48,6 @@ public record UpdateNpcRequest(
     string? Likes,
     string? Dislikes,
     string? Goals,
+    [Range(0, 1000)] int? CurrentHitPoints,
+    [Range(1, 1000)] int? MaxHitPoints,
     StatBlockRequest? StatBlock);

@@ -64,6 +64,8 @@ export function toInput(npc: Npc): NpcInput {
     likes: npc.likes ?? null,
     dislikes: npc.dislikes ?? null,
     goals: npc.goals ?? null,
+    currentHitPoints: npc.currentHitPoints ?? null,
+    maxHitPoints: npc.maxHitPoints ?? null,
     statBlock: npc.statBlock,
   }
 }

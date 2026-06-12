@@ -382,6 +382,10 @@ function NpcFormDialog({
   const [likes, setLikes] = useState(npc?.likes ?? '')
   const [dislikes, setDislikes] = useState(npc?.dislikes ?? '')
   const [goals, setGoals] = useState(npc?.goals ?? '')
+  const [currentHp, setCurrentHp] = useState(
+    npc?.currentHitPoints?.toString() ?? '',
+  )
+  const [maxHp, setMaxHp] = useState(npc?.maxHitPoints?.toString() ?? '')
   const [race, setRace] = useState<Race>('human')
   const [statBlock, setStatBlock] = useState<StatBlock | null>(
     npc?.statBlock ?? null,
@@ -399,6 +403,9 @@ function NpcFormDialog({
     mutationFn: fetchStatBlock,
     onSuccess: (block) => {
       setStatBlock(block)
+      // Seed the HP tracker from the monster unless already tracked.
+      setMaxHp((prev) => prev || String(block.hitPoints))
+      setCurrentHp((prev) => prev || String(block.hitPoints))
       setMonsterSearch('')
       setSubmittedSearch('')
     },
@@ -416,8 +423,18 @@ function NpcFormDialog({
       likes: likes.trim() || null,
       dislikes: dislikes.trim() || null,
       goals: goals.trim() || null,
+      currentHitPoints: currentHp === '' ? null : Number(currentHp),
+      maxHitPoints: maxHp === '' ? null : Number(maxHp),
       statBlock,
     })
+  }
+
+  // An empty current-HP field counts as 0 so the buttons always work.
+  const adjustHp = (delta: number) => {
+    const current = currentHp === '' ? 0 : Number(currentHp)
+    if (Number.isNaN(current)) return
+    const max = maxHp === '' ? Infinity : Number(maxHp)
+    setCurrentHp(String(Math.min(max, Math.max(0, current + delta))))
   }
 
   // Older saved NPCs predate traits/actions on the stat block.
@@ -503,6 +520,72 @@ function NpcFormDialog({
                     onChange={(e) => setLevel(Number(e.target.value))}
                     required
                   />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="npc-current-hp">Hit points</Label>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => adjustHp(-5)}
+                  >
+                    −5
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => adjustHp(-1)}
+                  >
+                    −1
+                  </Button>
+                  <Input
+                    id="npc-current-hp"
+                    type="number"
+                    min={0}
+                    max={maxHp === '' ? 1000 : Number(maxHp)}
+                    className="w-20"
+                    placeholder="Current"
+                    aria-label="Current hit points"
+                    value={currentHp}
+                    onChange={(e) => setCurrentHp(e.target.value)}
+                  />
+                  <span className="text-muted-foreground">/</span>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={1000}
+                    className="w-20"
+                    placeholder="Max"
+                    aria-label="Maximum hit points"
+                    value={maxHp}
+                    onChange={(e) => {
+                      const next = e.target.value
+                      setMaxHp(next)
+                      // Lowering the max drags current HP down with it.
+                      if (next !== '' && Number(currentHp) > Number(next)) {
+                        setCurrentHp(next)
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => adjustHp(1)}
+                  >
+                    +1
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => adjustHp(5)}
+                  >
+                    +5
+                  </Button>
                 </div>
               </div>
               <div className="space-y-2">

@@ -44,6 +44,8 @@ public class NpcsController : ControllerBase
             Likes = request.Likes,
             Dislikes = request.Dislikes,
             Goals = request.Goals,
+            CurrentHitPoints = request.CurrentHitPoints,
+            MaxHitPoints = request.MaxHitPoints,
             StatBlock = ToStatBlock(request.StatBlock),
         };
 
@@ -69,6 +71,8 @@ public class NpcsController : ControllerBase
         existing.Likes = request.Likes;
         existing.Dislikes = request.Dislikes;
         existing.Goals = request.Goals;
+        existing.CurrentHitPoints = request.CurrentHitPoints;
+        existing.MaxHitPoints = request.MaxHitPoints;
         existing.StatBlock = ToStatBlock(request.StatBlock);
 
         var updated = await _npcRepository.UpdateAsync(existing, cancellationToken);

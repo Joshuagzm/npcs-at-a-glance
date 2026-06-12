@@ -12,6 +12,8 @@ public class Npc
     public string? Likes { get; set; }
     public string? Dislikes { get; set; }
     public string? Goals { get; set; }
+    public int? CurrentHitPoints { get; set; }
+    public int? MaxHitPoints { get; set; }
     public NpcStatBlock? StatBlock { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
