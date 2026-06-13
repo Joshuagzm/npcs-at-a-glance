@@ -83,6 +83,7 @@ function makeLocation(overrides: Partial<Location> = {}): Location {
   return {
     id: crypto.randomUUID(),
     name: 'Ironforge Quarter',
+    notes: null,
     createdAt: '2026-06-11T00:00:00Z',
     ...overrides,
   }
@@ -316,7 +317,10 @@ describe('restoreBackup', () => {
 
     await restoreBackup(saved)
 
-    expect(createLocation).toHaveBeenCalledWith({ name: 'Riverside' })
+    expect(createLocation).toHaveBeenCalledWith({
+      name: 'Riverside',
+      notes: null,
+    })
     // The npc's old location id is remapped to the freshly created one.
     expect(createNpc).toHaveBeenCalledWith(
       expect.objectContaining({ name: 'Linked', locationId: 'new-loc' }),

@@ -88,12 +88,14 @@ function NpcsPage() {
     queryKey: ['locations'],
     queryFn: listLocations,
   })
-  const locationNames = new Map(
-    (locationsQuery.data ?? []).map((loc) => [loc.id, loc.name]),
-  )
+  const locations = locationsQuery.data ?? []
+  const locationNames = new Map(locations.map((loc) => [loc.id, loc.name]))
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Npc | null>(null)
+  // 'all' shows everyone; 'none' shows NPCs with no location; otherwise a
+  // location id.
+  const [locationFilter, setLocationFilter] = useState('all')
 
   const closeDialog = () => {
     setDialogOpen(false)
@@ -185,6 +187,13 @@ function NpcsPage() {
     ? updateMutation.isPending
     : createMutation.isPending
 
+  const allNpcs = npcsQuery.data ?? []
+  const filteredNpcs = allNpcs.filter((npc) => {
+    if (locationFilter === 'all') return true
+    if (locationFilter === 'none') return npc.locationId == null
+    return npc.locationId === locationFilter
+  })
+
   return (
     <section className="space-y-6">
       <div className="flex items-center justify-between">
@@ -249,129 +258,167 @@ function NpcsPage() {
         </p>
       )}
 
-      {npcsQuery.isSuccess && npcsQuery.data.length === 0 && (
+      {npcsQuery.isSuccess && allNpcs.length === 0 && (
         <p className="text-muted-foreground">
           No NPCs yet — add your first one.
         </p>
       )}
 
-      {npcsQuery.isSuccess && npcsQuery.data.length > 0 && (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Location</TableHead>
-              <TableHead className="text-right">Level</TableHead>
-              <TableHead>Disposition</TableHead>
-              <TableHead>Personality</TableHead>
-              <TableHead>Stat block</TableHead>
-              <TableHead className="w-0" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {npcsQuery.data.map((npc) => (
-              <TableRow
-                key={npc.id}
-                className="cursor-pointer"
-                onClick={() => {
-                  setEditing(npc)
-                  setDialogOpen(true)
-                }}
-              >
-                <TableCell className="font-medium">
-                  {npc.name}
-                  {npc.notes && (
-                    <p className="max-w-xs truncate text-xs text-muted-foreground">
-                      {npc.notes}
-                    </p>
-                  )}
-                </TableCell>
-                <TableCell>{npc.role ?? '—'}</TableCell>
-                <TableCell>
-                  {(npc.locationId && locationNames.get(npc.locationId)) ?? '—'}
-                </TableCell>
-                <TableCell className="text-right">{npc.level}</TableCell>
-                <TableCell>
-                  {npc.isHostile ? (
-                    <Badge variant="destructive">Hostile</Badge>
-                  ) : (
-                    <Badge variant="secondary">Friendly</Badge>
-                  )}
-                </TableCell>
-                <TableCell>
-                  {npc.likes || npc.dislikes || npc.goals ? (
-                    <div className="max-w-56 space-y-0.5 text-xs">
-                      {npc.likes && (
-                        <p className="truncate">
-                          <span className="text-muted-foreground">Likes:</span>{' '}
-                          {splitList(npc.likes).join(', ')}
+      {npcsQuery.isSuccess && allNpcs.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Label
+              htmlFor="npc-location-filter"
+              className="text-sm text-muted-foreground"
+            >
+              Filter by location
+            </Label>
+            <Select value={locationFilter} onValueChange={setLocationFilter}>
+              <SelectTrigger id="npc-location-filter" className="w-56">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All locations</SelectItem>
+                <SelectItem value="none">No location</SelectItem>
+                {locations.map((loc) => (
+                  <SelectItem key={loc.id} value={loc.id}>
+                    {loc.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {filteredNpcs.length === 0 ? (
+            <p className="text-muted-foreground">
+              No NPCs match this location.
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead className="text-right">Level</TableHead>
+                  <TableHead>Disposition</TableHead>
+                  <TableHead>Personality</TableHead>
+                  <TableHead>Stat block</TableHead>
+                  <TableHead className="w-0" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredNpcs.map((npc) => (
+                  <TableRow
+                    key={npc.id}
+                    className="cursor-pointer"
+                    onClick={() => {
+                      setEditing(npc)
+                      setDialogOpen(true)
+                    }}
+                  >
+                    <TableCell className="font-medium">
+                      {npc.name}
+                      {npc.notes && (
+                        <p className="max-w-xs truncate text-xs text-muted-foreground">
+                          {npc.notes}
                         </p>
                       )}
-                      {npc.dislikes && (
-                        <p className="truncate">
-                          <span className="text-muted-foreground">
-                            Dislikes:
-                          </span>{' '}
-                          {splitList(npc.dislikes).join(', ')}
-                        </p>
+                    </TableCell>
+                    <TableCell>{npc.role ?? '—'}</TableCell>
+                    <TableCell>
+                      {(npc.locationId && locationNames.get(npc.locationId)) ??
+                        '—'}
+                    </TableCell>
+                    <TableCell className="text-right">{npc.level}</TableCell>
+                    <TableCell>
+                      {npc.isHostile ? (
+                        <Badge variant="destructive">Hostile</Badge>
+                      ) : (
+                        <Badge variant="secondary">Friendly</Badge>
                       )}
-                      {npc.goals && (
-                        <p className="truncate">
-                          <span className="text-muted-foreground">Goals:</span>{' '}
-                          {splitList(npc.goals).join(', ')}
-                        </p>
+                    </TableCell>
+                    <TableCell>
+                      {npc.likes || npc.dislikes || npc.goals ? (
+                        <div className="max-w-56 space-y-0.5 text-xs">
+                          {npc.likes && (
+                            <p className="truncate">
+                              <span className="text-muted-foreground">
+                                Likes:
+                              </span>{' '}
+                              {splitList(npc.likes).join(', ')}
+                            </p>
+                          )}
+                          {npc.dislikes && (
+                            <p className="truncate">
+                              <span className="text-muted-foreground">
+                                Dislikes:
+                              </span>{' '}
+                              {splitList(npc.dislikes).join(', ')}
+                            </p>
+                          )}
+                          {npc.goals && (
+                            <p className="truncate">
+                              <span className="text-muted-foreground">
+                                Goals:
+                              </span>{' '}
+                              {splitList(npc.goals).join(', ')}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        '—'
                       )}
-                    </div>
-                  ) : (
-                    '—'
-                  )}
-                </TableCell>
-                <TableCell>
-                  {npc.statBlock ? (
-                    <>
-                      {npc.statBlock.monsterName}
-                      <p className="text-xs text-muted-foreground">
-                        CR{' '}
-                        {formatChallengeRating(npc.statBlock.challengeRating)} ·
-                        AC {npc.statBlock.armorClass} · HP{' '}
-                        {npc.statBlock.hitPoints}
-                      </p>
-                    </>
-                  ) : (
-                    '—'
-                  )}
-                </TableCell>
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setEditing(npc)
-                        setDialogOpen(true)
-                      }}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      disabled={deleteMutation.isPending}
-                      onClick={() => {
-                        if (confirm(`Delete ${npc.name}?`)) {
-                          deleteMutation.mutate(npc.id)
-                        }
-                      }}
-                    >
-                      Delete
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                    </TableCell>
+                    <TableCell>
+                      {npc.statBlock ? (
+                        <>
+                          {npc.statBlock.monsterName}
+                          <p className="text-xs text-muted-foreground">
+                            CR{' '}
+                            {formatChallengeRating(
+                              npc.statBlock.challengeRating,
+                            )}{' '}
+                            · AC {npc.statBlock.armorClass} · HP{' '}
+                            {npc.statBlock.hitPoints}
+                          </p>
+                        </>
+                      ) : (
+                        '—'
+                      )}
+                    </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setEditing(npc)
+                            setDialogOpen(true)
+                          }}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          disabled={deleteMutation.isPending}
+                          onClick={() => {
+                            if (confirm(`Delete ${npc.name}?`)) {
+                              deleteMutation.mutate(npc.id)
+                            }
+                          }}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </div>
       )}
 
       {deleteMutation.isError && (

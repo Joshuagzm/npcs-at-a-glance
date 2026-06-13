@@ -25,11 +25,13 @@ export interface StatBlock {
 export interface Location {
   id: string
   name: string
+  notes: string | null
   createdAt: string
 }
 
 export interface LocationInput {
   name: string
+  notes: string | null
 }
 
 export interface Npc {

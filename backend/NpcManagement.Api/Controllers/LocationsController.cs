@@ -36,6 +36,7 @@ public class LocationsController : ControllerBase
         var location = new Location
         {
             Name = request.Name,
+            Notes = request.Notes,
         };
 
         var created = await _locationRepository.AddAsync(location, cancellationToken);
@@ -52,6 +53,7 @@ public class LocationsController : ControllerBase
         }
 
         existing.Name = request.Name;
+        existing.Notes = request.Notes;
 
         var updated = await _locationRepository.UpdateAsync(existing, cancellationToken);
         return updated ? Ok(existing) : NotFound();

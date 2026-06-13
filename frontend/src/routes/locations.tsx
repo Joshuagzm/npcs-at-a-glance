@@ -22,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { Textarea } from '@/components/ui/textarea'
 import {
   createLocation,
   deleteLocation,
@@ -126,6 +127,7 @@ function LocationsPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
+              <TableHead>Notes</TableHead>
               <TableHead>NPCs</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -138,6 +140,9 @@ function LocationsPage() {
                 onClick={() => openEdit(location)}
               >
                 <TableCell className="font-medium">{location.name}</TableCell>
+                <TableCell className="max-w-xs truncate text-muted-foreground">
+                  {location.notes || '—'}
+                </TableCell>
                 <TableCell>{npcsFor(location.id).length}</TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>
                   <div className="flex justify-end gap-2">
@@ -202,6 +207,7 @@ function LocationFormDialog({
   error,
 }: LocationFormDialogProps) {
   const [name, setName] = useState(location?.name ?? '')
+  const [notes, setNotes] = useState(location?.notes ?? '')
   const [selectedNpcId, setSelectedNpcId] = useState<string | null>(null)
   // Derive from the live list so the panel closes if the NPC disappears.
   const selectedNpc =
@@ -210,7 +216,7 @@ function LocationFormDialog({
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault()
     if (!name.trim()) return
-    onSubmit({ name: name.trim() })
+    onSubmit({ name: name.trim(), notes: notes.trim() || null })
   }
 
   return (
@@ -241,6 +247,17 @@ function LocationFormDialog({
                 onChange={(e) => setName(e.target.value)}
                 autoFocus
                 required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="location-notes">Location notes</Label>
+              <Textarea
+                id="location-notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={3}
+                placeholder="A bustling port city, ruled by masked lords…"
               />
             </div>
 
@@ -303,7 +320,11 @@ function LocationFormDialog({
             form="location-form"
             disabled={pending || !name.trim()}
           >
-            {pending ? 'Saving…' : location ? 'Save changes' : 'Create location'}
+            {pending
+              ? 'Saving…'
+              : location
+                ? 'Save changes'
+                : 'Create location'}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -359,7 +380,9 @@ function NpcDetailPanel({ npc, onClose }: { npc: Npc; onClose: () => void }) {
 
       {npc.statBlock && (
         <div className="space-y-1">
-          <p className="text-xs font-medium text-muted-foreground">Stat block</p>
+          <p className="text-xs font-medium text-muted-foreground">
+            Stat block
+          </p>
           <p className="text-sm">{npc.statBlock.monsterName}</p>
           <p className="text-xs text-muted-foreground">
             CR {formatChallengeRating(npc.statBlock.challengeRating)} · AC{' '}

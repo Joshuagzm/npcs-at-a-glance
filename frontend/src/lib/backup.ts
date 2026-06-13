@@ -100,8 +100,8 @@ function fingerprint(npcs: Npc[], locations: Location[]): string {
         (a.role ?? '').localeCompare(b.role ?? ''),
     )
   const locationPart = locations
-    .map((loc) => loc.name)
-    .sort((a, b) => a.localeCompare(b))
+    .map((loc) => ({ name: loc.name, notes: loc.notes ?? null }))
+    .sort((a, b) => a.name.localeCompare(b.name))
   return JSON.stringify({ npcs: npcPart, locations: locationPart })
 }
 
@@ -129,8 +129,7 @@ export function hasUnsavedChanges(
 ): boolean {
   if (!backup) return npcs.length > 0 || locations.length > 0
   return (
-    fingerprint(npcs, locations) !==
-    fingerprint(backup.npcs, backup.locations)
+    fingerprint(npcs, locations) !== fingerprint(backup.npcs, backup.locations)
   )
 }
 
@@ -237,7 +236,10 @@ export async function restoreBackup(backup: NpcBackup): Promise<NpcBackup> {
   // one so the NPCs' locationId links survive the restore.
   const idByOldId = new Map<string, string>()
   for (const location of backup.locations) {
-    const created = await createLocation({ name: location.name })
+    const created = await createLocation({
+      name: location.name,
+      notes: location.notes ?? null,
+    })
     idByOldId.set(location.id, created.id)
   }
 
