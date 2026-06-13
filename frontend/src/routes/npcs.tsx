@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import { EditableList } from '@/components/editable-list'
 import {
   Dialog,
   DialogContent,
@@ -61,6 +62,19 @@ import {
 export const Route = createFileRoute('/npcs')({
   component: NpcsPage,
 })
+
+// Likes/dislikes/goals are stored as a single newline-joined string, but
+// edited and displayed as a list of entries.
+function splitList(value: string | null | undefined): string[] {
+  return (value ?? '')
+    .split('\n')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+}
+
+function joinList(items: string[]): string | null {
+  return items.length > 0 ? items.join('\n') : null
+}
 
 function NpcsPage() {
   const queryClient = useQueryClient()
@@ -268,7 +282,7 @@ function NpcsPage() {
                       {npc.likes && (
                         <p className="truncate">
                           <span className="text-muted-foreground">Likes:</span>{' '}
-                          {npc.likes}
+                          {splitList(npc.likes).join(', ')}
                         </p>
                       )}
                       {npc.dislikes && (
@@ -276,13 +290,13 @@ function NpcsPage() {
                           <span className="text-muted-foreground">
                             Dislikes:
                           </span>{' '}
-                          {npc.dislikes}
+                          {splitList(npc.dislikes).join(', ')}
                         </p>
                       )}
                       {npc.goals && (
                         <p className="truncate">
                           <span className="text-muted-foreground">Goals:</span>{' '}
-                          {npc.goals}
+                          {splitList(npc.goals).join(', ')}
                         </p>
                       )}
                     </div>
@@ -379,9 +393,11 @@ function NpcFormDialog({
   const [level, setLevel] = useState(npc?.level ?? 1)
   const [isHostile, setIsHostile] = useState(npc?.isHostile ?? false)
   const [notes, setNotes] = useState(npc?.notes ?? '')
-  const [likes, setLikes] = useState(npc?.likes ?? '')
-  const [dislikes, setDislikes] = useState(npc?.dislikes ?? '')
-  const [goals, setGoals] = useState(npc?.goals ?? '')
+  const [likes, setLikes] = useState<string[]>(() => splitList(npc?.likes))
+  const [dislikes, setDislikes] = useState<string[]>(() =>
+    splitList(npc?.dislikes),
+  )
+  const [goals, setGoals] = useState<string[]>(() => splitList(npc?.goals))
   const [currentHp, setCurrentHp] = useState(
     npc?.currentHitPoints?.toString() ?? '',
   )
@@ -420,9 +436,9 @@ function NpcFormDialog({
       level,
       isHostile,
       notes: notes.trim() || null,
-      likes: likes.trim() || null,
-      dislikes: dislikes.trim() || null,
-      goals: goals.trim() || null,
+      likes: joinList(likes),
+      dislikes: joinList(dislikes),
+      goals: joinList(goals),
       currentHitPoints: currentHp === '' ? null : Number(currentHp),
       maxHitPoints: maxHp === '' ? null : Number(maxHp),
       statBlock,
@@ -579,6 +595,29 @@ function NpcFormDialog({
                   </div>
                 </div>
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <EditableList
+                  id="npc-likes"
+                  label="Likes"
+                  items={likes}
+                  onChange={setLikes}
+                  placeholder="Fine ale, gossip, …"
+                />
+                <EditableList
+                  id="npc-dislikes"
+                  label="Dislikes"
+                  items={dislikes}
+                  onChange={setDislikes}
+                  placeholder="Nobles, loud noises, …"
+                />
+              </div>
+              <EditableList
+                id="npc-goals"
+                label="Goals"
+                items={goals}
+                onChange={setGoals}
+                placeholder="What does this character want?"
+              />
               <div className="space-y-2">
                 <Label htmlFor="npc-notes">Notes</Label>
                 <Textarea
@@ -586,38 +625,6 @@ function NpcFormDialog({
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   rows={3}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="npc-likes">Likes</Label>
-                  <Textarea
-                    id="npc-likes"
-                    value={likes}
-                    onChange={(e) => setLikes(e.target.value)}
-                    rows={2}
-                    placeholder="Fine ale, gossip, …"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="npc-dislikes">Dislikes</Label>
-                  <Textarea
-                    id="npc-dislikes"
-                    value={dislikes}
-                    onChange={(e) => setDislikes(e.target.value)}
-                    rows={2}
-                    placeholder="Nobles, loud noises, …"
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="npc-goals">Goals</Label>
-                <Textarea
-                  id="npc-goals"
-                  value={goals}
-                  onChange={(e) => setGoals(e.target.value)}
-                  rows={2}
-                  placeholder="What does this character want?"
                 />
               </div>
               <div className="flex items-center gap-2">
