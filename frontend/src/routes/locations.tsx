@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { X } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -30,6 +32,8 @@ import {
   type LocationInput,
   type Npc,
 } from '@/lib/api'
+import { formatChallengeRating } from '@/lib/srd'
+import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/locations')({
   component: LocationsPage,
@@ -198,6 +202,10 @@ function LocationFormDialog({
   error,
 }: LocationFormDialogProps) {
   const [name, setName] = useState(location?.name ?? '')
+  const [selectedNpcId, setSelectedNpcId] = useState<string | null>(null)
+  // Derive from the live list so the panel closes if the NPC disappears.
+  const selectedNpc =
+    associatedNpcs.find((npc) => npc.id === selectedNpcId) ?? null
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault()
@@ -207,7 +215,7 @@ function LocationFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent>
+      <DialogContent className={cn(selectedNpc && 'sm:max-w-3xl')}>
         <DialogHeader>
           <DialogTitle>
             {location ? `Edit ${location.name}` : 'Add location'}
@@ -218,62 +226,172 @@ function LocationFormDialog({
               : 'Name the new location.'}
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="location-name">Name</Label>
-            <Input
-              id="location-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              autoFocus
-              required
-            />
-          </div>
 
-          {location && (
+        <div className="flex gap-4">
+          <form
+            id="location-form"
+            onSubmit={handleSubmit}
+            className={cn('space-y-4', selectedNpc ? 'w-1/2' : 'w-full')}
+          >
             <div className="space-y-2">
-              <Label>NPCs in this location</Label>
-              {associatedNpcs.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No NPCs are assigned to this location yet.
-                </p>
-              ) : (
-                <ul className="space-y-1">
-                  {associatedNpcs.map((npc) => (
-                    <li
-                      key={npc.id}
-                      className="rounded-md border bg-muted/40 px-3 py-1.5 text-sm"
-                    >
-                      {npc.name}
-                      {npc.role && (
-                        <span className="text-muted-foreground">
-                          {' '}
-                          — {npc.role}
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
+              <Label htmlFor="location-name">Name</Label>
+              <Input
+                id="location-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                autoFocus
+                required
+              />
+            </div>
+
+            {location && (
+              <div className="space-y-2">
+                <Label>NPCs in this location</Label>
+                {associatedNpcs.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No NPCs are assigned to this location yet.
+                  </p>
+                ) : (
+                  <ul className="space-y-1">
+                    {associatedNpcs.map((npc) => (
+                      <li key={npc.id}>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedNpcId(npc.id)}
+                          className={cn(
+                            'w-full rounded-md border bg-muted/40 px-3 py-1.5 text-left text-sm transition-colors hover:bg-muted',
+                            selectedNpcId === npc.id &&
+                              'border-ring bg-muted ring-2 ring-ring/40',
+                          )}
+                        >
+                          {npc.name}
+                          {npc.role && (
+                            <span className="text-muted-foreground">
+                              {' '}
+                              — {npc.role}
+                            </span>
+                          )}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
+            {error && (
+              <p className="text-sm text-destructive">{error.message}</p>
+            )}
+          </form>
+
+          {selectedNpc && (
+            <div className="max-h-[60vh] w-1/2 overflow-y-auto border-l pl-4">
+              <NpcDetailPanel
+                npc={selectedNpc}
+                onClose={() => setSelectedNpcId(null)}
+              />
             </div>
           )}
+        </div>
 
-          {error && <p className="text-sm text-destructive">{error.message}</p>}
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={pending || !name.trim()}>
-              {pending
-                ? 'Saving…'
-                : location
-                  ? 'Save changes'
-                  : 'Create location'}
-            </Button>
-          </DialogFooter>
-        </form>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form="location-form"
+            disabled={pending || !name.trim()}
+          >
+            {pending ? 'Saving…' : location ? 'Save changes' : 'Create location'}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+function NpcDetailPanel({ npc, onClose }: { npc: Npc; onClose: () => void }) {
+  const hasHp = npc.currentHitPoints != null || npc.maxHitPoints != null
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h3 className="font-heading text-base font-medium">{npc.name}</h3>
+          {npc.role && (
+            <p className="text-sm text-muted-foreground">{npc.role}</p>
+          )}
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={onClose}
+          aria-label="Close NPC details"
+        >
+          <X />
+        </Button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <Badge variant={npc.isHostile ? 'destructive' : 'secondary'}>
+          {npc.isHostile ? 'Hostile' : 'Friendly'}
+        </Badge>
+        <span className="text-muted-foreground">Level {npc.level}</span>
+        {hasHp && (
+          <span className="text-muted-foreground">
+            HP {npc.currentHitPoints ?? '—'}/{npc.maxHitPoints ?? '—'}
+          </span>
+        )}
+      </div>
+
+      <NpcDetailList label="Likes" value={npc.likes} />
+      <NpcDetailList label="Dislikes" value={npc.dislikes} />
+      <NpcDetailList label="Goals" value={npc.goals} />
+
+      {npc.notes && (
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-muted-foreground">Notes</p>
+          <p className="text-sm whitespace-pre-wrap">{npc.notes}</p>
+        </div>
+      )}
+
+      {npc.statBlock && (
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-muted-foreground">Stat block</p>
+          <p className="text-sm">{npc.statBlock.monsterName}</p>
+          <p className="text-xs text-muted-foreground">
+            CR {formatChallengeRating(npc.statBlock.challengeRating)} · AC{' '}
+            {npc.statBlock.armorClass} · HP {npc.statBlock.hitPoints}
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function NpcDetailList({
+  label,
+  value,
+}: {
+  label: string
+  value: string | null
+}) {
+  const items = (value ?? '')
+    .split('\n')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+  if (items.length === 0) return null
+
+  return (
+    <div className="space-y-1">
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <ul className="list-inside list-disc text-sm">
+        {items.map((item, index) => (
+          <li key={index}>{item}</li>
+        ))}
+      </ul>
+    </div>
   )
 }
