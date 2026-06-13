@@ -10,6 +10,10 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+
+# Dev caches / tooling artifacts
+.tanstack
+.playwright-mcp
 *.local
 
 # Editor directories and files

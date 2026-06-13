@@ -429,14 +429,6 @@ function NpcFormDialog({
     })
   }
 
-  // An empty current-HP field counts as 0 so the buttons always work.
-  const adjustHp = (delta: number) => {
-    const current = currentHp === '' ? 0 : Number(currentHp)
-    if (Number.isNaN(current)) return
-    const max = maxHp === '' ? Infinity : Number(maxHp)
-    setCurrentHp(String(Math.min(max, Math.max(0, current + delta))))
-  }
-
   // Older saved NPCs predate traits/actions on the stat block.
   const statBlockTraits = statBlock?.traits ?? []
   const statBlockActions = statBlock?.actions ?? []
@@ -523,69 +515,64 @@ function NpcFormDialog({
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="npc-current-hp">Hit points</Label>
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => adjustHp(-5)}
-                  >
-                    −5
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => adjustHp(-1)}
-                  >
-                    −1
-                  </Button>
-                  <Input
-                    id="npc-current-hp"
-                    type="number"
-                    min={0}
-                    max={maxHp === '' ? 1000 : Number(maxHp)}
-                    className="w-20"
-                    placeholder="Current"
-                    aria-label="Current hit points"
-                    value={currentHp}
-                    onChange={(e) => setCurrentHp(e.target.value)}
-                  />
-                  <span className="text-muted-foreground">/</span>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={1000}
-                    className="w-20"
-                    placeholder="Max"
-                    aria-label="Maximum hit points"
-                    value={maxHp}
-                    onChange={(e) => {
-                      const next = e.target.value
-                      setMaxHp(next)
-                      // Lowering the max drags current HP down with it.
-                      if (next !== '' && Number(currentHp) > Number(next)) {
-                        setCurrentHp(next)
-                      }
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => adjustHp(1)}
-                  >
-                    +1
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => adjustHp(5)}
-                  >
-                    +5
-                  </Button>
+                <Label>Hit points</Label>
+                <div className="flex items-end gap-3">
+                  <div className="space-y-1">
+                    <Label
+                      htmlFor="npc-current-hp"
+                      className="text-xs font-normal text-muted-foreground"
+                    >
+                      Current
+                    </Label>
+                    <Input
+                      id="npc-current-hp"
+                      type="number"
+                      min={0}
+                      max={maxHp === '' ? 1000 : Number(maxHp)}
+                      className="w-20 text-center"
+                      placeholder="—"
+                      aria-label="Current hit points"
+                      value={currentHp}
+                      onChange={(e) => setCurrentHp(e.target.value)}
+                      onBlur={() => {
+                        // Clip current HP down to max if it overshoots.
+                        if (
+                          currentHp !== '' &&
+                          maxHp !== '' &&
+                          Number(currentHp) > Number(maxHp)
+                        ) {
+                          setCurrentHp(maxHp)
+                        }
+                      }}
+                    />
+                  </div>
+                  <span className="pb-2 text-muted-foreground">/</span>
+                  <div className="space-y-1">
+                    <Label
+                      htmlFor="npc-max-hp"
+                      className="text-xs font-normal text-muted-foreground"
+                    >
+                      Max
+                    </Label>
+                    <Input
+                      id="npc-max-hp"
+                      type="number"
+                      min={1}
+                      max={1000}
+                      className="w-20 text-center"
+                      placeholder="—"
+                      aria-label="Maximum hit points"
+                      value={maxHp}
+                      onChange={(e) => {
+                        const next = e.target.value
+                        setMaxHp(next)
+                        // Lowering the max drags current HP down with it.
+                        if (next !== '' && Number(currentHp) > Number(next)) {
+                          setCurrentHp(next)
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
               <div className="space-y-2">
