@@ -5,7 +5,7 @@ public class Npc
     public Guid Id { get; set; } = Guid.NewGuid();
     public required string Name { get; set; }
     public string? Role { get; set; }
-    public string? Location { get; set; }
+    public Guid? LocationId { get; set; }
     public int Level { get; set; } = 1;
     public bool IsHostile { get; set; }
     public string? Notes { get; set; }

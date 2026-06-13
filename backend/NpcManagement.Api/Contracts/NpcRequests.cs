@@ -27,7 +27,7 @@ public record StatBlockRequest(
 public record CreateNpcRequest(
     [Required] string Name,
     string? Role = null,
-    string? Location = null,
+    Guid? LocationId = null,
     [Range(1, 100)] int Level = 1,
     bool IsHostile = false,
     string? Notes = null,
@@ -41,7 +41,7 @@ public record CreateNpcRequest(
 public record UpdateNpcRequest(
     [Required] string Name,
     string? Role,
-    string? Location,
+    Guid? LocationId,
     [Range(1, 100)] int Level,
     bool IsHostile,
     string? Notes,

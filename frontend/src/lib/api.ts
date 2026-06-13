@@ -22,11 +22,21 @@ export interface StatBlock {
   actions: StatBlockEntry[]
 }
 
+export interface Location {
+  id: string
+  name: string
+  createdAt: string
+}
+
+export interface LocationInput {
+  name: string
+}
+
 export interface Npc {
   id: string
   name: string
   role: string | null
-  location: string | null
+  locationId: string | null
   level: number
   isHostile: boolean
   notes: string | null
@@ -42,7 +52,7 @@ export interface Npc {
 export interface NpcInput {
   name: string
   role: string | null
-  location: string | null
+  locationId: string | null
   level: number
   isHostile: boolean
   notes: string | null
@@ -93,4 +103,29 @@ export function updateNpc(id: string, input: NpcInput): Promise<Npc> {
 
 export function deleteNpc(id: string): Promise<void> {
   return request<void>(`/api/npcs/${id}`, { method: 'DELETE' })
+}
+
+export function listLocations(): Promise<Location[]> {
+  return request<Location[]>('/api/locations')
+}
+
+export function createLocation(input: LocationInput): Promise<Location> {
+  return request<Location>('/api/locations', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
+export function updateLocation(
+  id: string,
+  input: LocationInput,
+): Promise<Location> {
+  return request<Location>(`/api/locations/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  })
+}
+
+export function deleteLocation(id: string): Promise<void> {
+  return request<void>(`/api/locations/${id}`, { method: 'DELETE' })
 }

@@ -45,10 +45,10 @@ function HomePage() {
           <span className="text-lg font-semibold">NPC Management</span>
         </Link>
 
-        <DisabledTile>
+        <Link to="/locations" className={tileClasses}>
           <MapPin className="size-8" />
           <span className="text-lg font-semibold">Location Management</span>
-        </DisabledTile>
+        </Link>
 
         <DisabledTile>
           <Settings className="size-8" />

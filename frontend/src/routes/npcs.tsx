@@ -34,6 +34,7 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   createNpc,
   deleteNpc,
+  listLocations,
   listNpcs,
   updateNpc,
   type Npc,
@@ -63,6 +64,10 @@ export const Route = createFileRoute('/npcs')({
   component: NpcsPage,
 })
 
+// Radix Select items can't use an empty value, so a sentinel stands in for
+// "no location assigned".
+const NO_LOCATION = '__none__'
+
 // Likes/dislikes/goals are stored as a single newline-joined string, but
 // edited and displayed as a list of entries.
 function splitList(value: string | null | undefined): string[] {
@@ -79,6 +84,13 @@ function joinList(items: string[]): string | null {
 function NpcsPage() {
   const queryClient = useQueryClient()
   const npcsQuery = useQuery({ queryKey: ['npcs'], queryFn: listNpcs })
+  const locationsQuery = useQuery({
+    queryKey: ['locations'],
+    queryFn: listLocations,
+  })
+  const locationNames = new Map(
+    (locationsQuery.data ?? []).map((loc) => [loc.id, loc.name]),
+  )
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Npc | null>(null)
@@ -115,7 +127,8 @@ function NpcsPage() {
   const [backup, setBackup] = useState(lastSavedBackup)
 
   const saveMutation = useMutation({
-    mutationFn: saveBackupToFile,
+    mutationFn: () =>
+      saveBackupToFile(npcsQuery.data ?? [], locationsQuery.data ?? []),
     onSuccess: (saved) => {
       if (saved) setBackup(saved)
     },
@@ -145,7 +158,8 @@ function NpcsPage() {
   })
 
   const unsaved =
-    npcsQuery.isSuccess && hasUnsavedChanges(npcsQuery.data, backup)
+    npcsQuery.isSuccess &&
+    hasUnsavedChanges(npcsQuery.data, locationsQuery.data ?? [], backup)
 
   useEffect(() => {
     if (!unsaved) return
@@ -185,7 +199,7 @@ function NpcsPage() {
           <Button
             variant="outline"
             disabled={!npcsQuery.isSuccess || saveMutation.isPending}
-            onClick={() => saveMutation.mutate(npcsQuery.data ?? [])}
+            onClick={() => saveMutation.mutate()}
           >
             {saveMutation.isPending ? 'Saving…' : 'Save backup'}
           </Button>
@@ -267,7 +281,9 @@ function NpcsPage() {
                   )}
                 </TableCell>
                 <TableCell>{npc.role ?? '—'}</TableCell>
-                <TableCell>{npc.location ?? '—'}</TableCell>
+                <TableCell>
+                  {(npc.locationId && locationNames.get(npc.locationId)) ?? '—'}
+                </TableCell>
                 <TableCell className="text-right">{npc.level}</TableCell>
                 <TableCell>
                   {npc.isHostile ? (
@@ -389,7 +405,7 @@ function NpcFormDialog({
 }: NpcFormDialogProps) {
   const [name, setName] = useState(npc?.name ?? '')
   const [role, setRole] = useState(npc?.role ?? '')
-  const [location, setLocation] = useState(npc?.location ?? '')
+  const [locationId, setLocationId] = useState(npc?.locationId ?? '')
   const [level, setLevel] = useState(npc?.level ?? 1)
   const [isHostile, setIsHostile] = useState(npc?.isHostile ?? false)
   const [notes, setNotes] = useState(npc?.notes ?? '')
@@ -415,6 +431,12 @@ function NpcFormDialog({
     enabled: submittedSearch.length > 0,
   })
 
+  const locationsQuery = useQuery({
+    queryKey: ['locations'],
+    queryFn: listLocations,
+  })
+  const locations = locationsQuery.data ?? []
+
   const statBlockMutation = useMutation({
     mutationFn: fetchStatBlock,
     onSuccess: (block) => {
@@ -432,7 +454,7 @@ function NpcFormDialog({
     onSubmit({
       name: name.trim(),
       role: role.trim() || null,
-      location: location.trim() || null,
+      locationId: locationId || null,
       level,
       isHostile,
       notes: notes.trim() || null,
@@ -511,11 +533,24 @@ function NpcFormDialog({
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="npc-location">Location</Label>
-                  <Input
-                    id="npc-location"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                  />
+                  <Select
+                    value={locationId || NO_LOCATION}
+                    onValueChange={(value) =>
+                      setLocationId(value === NO_LOCATION ? '' : value)
+                    }
+                  >
+                    <SelectTrigger id="npc-location" className="w-full">
+                      <SelectValue placeholder="No location" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NO_LOCATION}>No location</SelectItem>
+                      {locations.map((loc) => (
+                        <SelectItem key={loc.id} value={loc.id}>
+                          {loc.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="npc-level">Level (1–100)</Label>

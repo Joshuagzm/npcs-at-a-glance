@@ -23,6 +23,12 @@ function RootLayout() {
           >
             NPCs
           </Link>
+          <Link
+            to="/locations"
+            className="text-sm text-muted-foreground hover:text-foreground [&.active]:text-foreground"
+          >
+            Locations
+          </Link>
           <div className="ml-auto">
             <ModeToggle />
           </div>

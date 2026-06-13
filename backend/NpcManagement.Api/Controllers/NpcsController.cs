@@ -37,7 +37,7 @@ public class NpcsController : ControllerBase
         {
             Name = request.Name,
             Role = request.Role,
-            Location = request.Location,
+            LocationId = request.LocationId,
             Level = request.Level,
             IsHostile = request.IsHostile,
             Notes = request.Notes,
@@ -64,7 +64,7 @@ public class NpcsController : ControllerBase
 
         existing.Name = request.Name;
         existing.Role = request.Role;
-        existing.Location = request.Location;
+        existing.LocationId = request.LocationId;
         existing.Level = request.Level;
         existing.IsHostile = request.IsHostile;
         existing.Notes = request.Notes;

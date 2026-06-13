@@ -1,4 +1,14 @@
-import { createNpc, deleteNpc, listNpcs, type Npc, type NpcInput } from './api'
+import {
+  createLocation,
+  createNpc,
+  deleteLocation,
+  deleteNpc,
+  listLocations,
+  listNpcs,
+  type Location,
+  type Npc,
+  type NpcInput,
+} from './api'
 
 // Backups are JSON files the user saves to / loads from disk via the
 // File System Access API (with a download / file-input fallback for
@@ -9,6 +19,7 @@ const STORAGE_KEY = 'npc-management:backup'
 export interface NpcBackup {
   savedAt: string
   npcs: Npc[]
+  locations: Location[]
 }
 
 // Minimal File System Access API surface (not yet in the TS DOM lib).
@@ -57,7 +68,7 @@ export function toInput(npc: Npc): NpcInput {
   return {
     name: npc.name,
     role: npc.role,
-    location: npc.location,
+    locationId: npc.locationId,
     level: npc.level,
     isHostile: npc.isHostile,
     notes: npc.notes,
@@ -70,18 +81,28 @@ export function toInput(npc: Npc): NpcInput {
   }
 }
 
-// Compare on input fields only: ids and createdAt regenerate when a
-// backup is restored, but the data is the same.
-function fingerprint(npcs: Npc[]): string {
-  return JSON.stringify(
-    npcs
-      .map(toInput)
-      .sort(
-        (a, b) =>
-          a.name.localeCompare(b.name) ||
-          (a.role ?? '').localeCompare(b.role ?? ''),
-      ),
-  )
+// Compare on stable content only: ids and createdAt regenerate when a
+// backup is restored, so the npc/location link is compared by location
+// name rather than by the id that changes on restore.
+function fingerprint(npcs: Npc[], locations: Location[]): string {
+  const nameById = new Map(locations.map((loc) => [loc.id, loc.name]))
+  const npcPart = npcs
+    .map((npc) => {
+      const { locationId, ...rest } = toInput(npc)
+      return {
+        ...rest,
+        location: locationId ? (nameById.get(locationId) ?? null) : null,
+      }
+    })
+    .sort(
+      (a, b) =>
+        a.name.localeCompare(b.name) ||
+        (a.role ?? '').localeCompare(b.role ?? ''),
+    )
+  const locationPart = locations
+    .map((loc) => loc.name)
+    .sort((a, b) => a.localeCompare(b))
+  return JSON.stringify({ npcs: npcPart, locations: locationPart })
 }
 
 function remember(backup: NpcBackup): NpcBackup {
@@ -94,7 +115,8 @@ export function lastSavedBackup(): NpcBackup | null {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return null
     const backup = JSON.parse(raw) as NpcBackup
-    return Array.isArray(backup.npcs) ? backup : null
+    if (!Array.isArray(backup.npcs)) return null
+    return { ...backup, locations: backup.locations ?? [] }
   } catch {
     return null
   }
@@ -102,10 +124,14 @@ export function lastSavedBackup(): NpcBackup | null {
 
 export function hasUnsavedChanges(
   npcs: Npc[],
+  locations: Location[],
   backup: NpcBackup | null,
 ): boolean {
-  if (!backup) return npcs.length > 0
-  return fingerprint(npcs) !== fingerprint(backup.npcs)
+  if (!backup) return npcs.length > 0 || locations.length > 0
+  return (
+    fingerprint(npcs, locations) !==
+    fingerprint(backup.npcs, backup.locations)
+  )
 }
 
 function parseBackup(raw: string): NpcBackup {
@@ -118,12 +144,20 @@ function parseBackup(raw: string): NpcBackup {
   if (!Array.isArray(backup.npcs)) {
     throw new Error('That file is not an NPC backup')
   }
-  return backup
+  // Locations were added later; tolerate backups saved before then.
+  return { ...backup, locations: backup.locations ?? [] }
 }
 
 /** Save to a user-chosen file. Returns null if the user cancels. */
-export async function saveBackupToFile(npcs: Npc[]): Promise<NpcBackup | null> {
-  const backup: NpcBackup = { savedAt: new Date().toISOString(), npcs }
+export async function saveBackupToFile(
+  npcs: Npc[],
+  locations: Location[],
+): Promise<NpcBackup | null> {
+  const backup: NpcBackup = {
+    savedAt: new Date().toISOString(),
+    npcs,
+    locations,
+  }
   const json = JSON.stringify(backup, null, 2)
   const suggestedName = `npc-backup-${backup.savedAt.slice(0, 10)}.json`
 
@@ -190,12 +224,30 @@ export async function pickBackupFile(): Promise<NpcBackup | null> {
   })
 }
 
-/** Replace the server's NPCs with the backup's contents. */
+/** Replace the server's NPCs and locations with the backup's contents. */
 export async function restoreBackup(backup: NpcBackup): Promise<NpcBackup> {
-  const current = await listNpcs()
-  await Promise.all(current.map((npc) => deleteNpc(npc.id)))
-  for (const npc of backup.npcs) {
-    await createNpc(toInput(npc))
+  const [currentNpcs, currentLocations] = await Promise.all([
+    listNpcs(),
+    listLocations(),
+  ])
+  await Promise.all(currentNpcs.map((npc) => deleteNpc(npc.id)))
+  await Promise.all(currentLocations.map((loc) => deleteLocation(loc.id)))
+
+  // Recreate locations first, mapping each old id to its freshly assigned
+  // one so the NPCs' locationId links survive the restore.
+  const idByOldId = new Map<string, string>()
+  for (const location of backup.locations) {
+    const created = await createLocation({ name: location.name })
+    idByOldId.set(location.id, created.id)
   }
+
+  for (const npc of backup.npcs) {
+    const input = toInput(npc)
+    input.locationId = npc.locationId
+      ? (idByOldId.get(npc.locationId) ?? null)
+      : null
+    await createNpc(input)
+  }
+
   return remember(backup)
 }

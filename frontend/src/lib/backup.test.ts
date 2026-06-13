@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Npc } from './api'
+import type { Location, Npc } from './api'
 import {
   hasUnsavedChanges,
   lastSavedBackup,
@@ -14,9 +14,19 @@ vi.mock('./api', () => ({
   listNpcs: vi.fn(),
   createNpc: vi.fn(),
   deleteNpc: vi.fn(),
+  listLocations: vi.fn(),
+  createLocation: vi.fn(),
+  deleteLocation: vi.fn(),
 }))
 
-import { createNpc, deleteNpc, listNpcs } from './api'
+import {
+  createLocation,
+  createNpc,
+  deleteLocation,
+  deleteNpc,
+  listLocations,
+  listNpcs,
+} from './api'
 
 const STORAGE_KEY = 'npc-management:backup'
 
@@ -25,7 +35,7 @@ function makeNpc(overrides: Partial<Npc> = {}): Npc {
     id: crypto.randomUUID(),
     name: 'Greta Ironhand',
     role: 'Blacksmith',
-    location: 'Ironforge Quarter',
+    locationId: null,
     level: 12,
     isHostile: false,
     notes: null,
@@ -69,8 +79,17 @@ function makeNpc(overrides: Partial<Npc> = {}): Npc {
   }
 }
 
-function makeBackup(npcs: Npc[]): NpcBackup {
-  return { savedAt: '2026-06-11T10:00:00Z', npcs }
+function makeLocation(overrides: Partial<Location> = {}): Location {
+  return {
+    id: crypto.randomUUID(),
+    name: 'Ironforge Quarter',
+    createdAt: '2026-06-11T00:00:00Z',
+    ...overrides,
+  }
+}
+
+function makeBackup(npcs: Npc[], locations: Location[] = []): NpcBackup {
+  return { savedAt: '2026-06-11T10:00:00Z', npcs, locations }
 }
 
 interface PickerWindow {
@@ -117,7 +136,7 @@ describe('saveBackupToFile', () => {
     stubSavePicker(sink)
     const npcs = [makeNpc(), makeNpc({ name: 'Bob', role: 'Informant' })]
 
-    const backup = await saveBackupToFile(npcs)
+    const backup = await saveBackupToFile(npcs, [])
 
     expect(backup).not.toBeNull()
     expect(sink.written).not.toBeNull()
@@ -133,7 +152,7 @@ describe('saveBackupToFile', () => {
       throw new DOMException('user cancelled', 'AbortError')
     })
 
-    const backup = await saveBackupToFile([makeNpc()])
+    const backup = await saveBackupToFile([makeNpc()], [])
 
     expect(backup).toBeNull()
     expect(lastSavedBackup()).toBeNull()
@@ -144,7 +163,7 @@ describe('saveBackupToFile', () => {
       throw new DOMException('blocked', 'SecurityError')
     })
 
-    await expect(saveBackupToFile([makeNpc()])).rejects.toThrow('blocked')
+    await expect(saveBackupToFile([makeNpc()], [])).rejects.toThrow('blocked')
     expect(lastSavedBackup()).toBeNull()
   })
 
@@ -161,7 +180,7 @@ describe('saveBackupToFile', () => {
       .spyOn(HTMLAnchorElement.prototype, 'click')
       .mockImplementation(() => {})
 
-    const backup = await saveBackupToFile([makeNpc()])
+    const backup = await saveBackupToFile([makeNpc()], [])
 
     expect(backup).not.toBeNull()
     expect(click).toHaveBeenCalledOnce()
@@ -182,7 +201,7 @@ describe('saveBackupToFile', () => {
       .spyOn(HTMLAnchorElement.prototype, 'click')
       .mockImplementation(() => {})
 
-    const backup = await saveBackupToFile([makeNpc()])
+    const backup = await saveBackupToFile([makeNpc()], [])
 
     expect(backup).not.toBeNull()
     expect(createObjectURL).toHaveBeenCalledOnce()
@@ -263,6 +282,8 @@ describe('restoreBackup', () => {
     const saved = makeBackup([makeNpc({ name: 'Restored' })])
     vi.mocked(listNpcs).mockResolvedValue(existing)
     vi.mocked(deleteNpc).mockResolvedValue(undefined)
+    vi.mocked(listLocations).mockResolvedValue([])
+    vi.mocked(deleteLocation).mockResolvedValue(undefined)
     vi.mocked(createNpc).mockImplementation(async (input) =>
       makeNpc({ ...input, id: crypto.randomUUID() }),
     )
@@ -277,15 +298,39 @@ describe('restoreBackup', () => {
     expect(result).toEqual(saved)
     expect(lastSavedBackup()?.npcs[0].name).toBe('Restored')
   })
+
+  it('recreates locations and remaps each npc location id', async () => {
+    const oldLocation = makeLocation({ id: 'old-loc', name: 'Riverside' })
+    const npc = makeNpc({ name: 'Linked', locationId: 'old-loc' })
+    const saved = makeBackup([npc], [oldLocation])
+    vi.mocked(listNpcs).mockResolvedValue([])
+    vi.mocked(deleteNpc).mockResolvedValue(undefined)
+    vi.mocked(listLocations).mockResolvedValue([])
+    vi.mocked(deleteLocation).mockResolvedValue(undefined)
+    vi.mocked(createLocation).mockResolvedValue(
+      makeLocation({ id: 'new-loc', name: 'Riverside' }),
+    )
+    vi.mocked(createNpc).mockImplementation(async (input) =>
+      makeNpc({ ...input, id: crypto.randomUUID() }),
+    )
+
+    await restoreBackup(saved)
+
+    expect(createLocation).toHaveBeenCalledWith({ name: 'Riverside' })
+    // The npc's old location id is remapped to the freshly created one.
+    expect(createNpc).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Linked', locationId: 'new-loc' }),
+    )
+  })
 })
 
 describe('hasUnsavedChanges', () => {
   it('is clean when there is no backup and no data', () => {
-    expect(hasUnsavedChanges([], null)).toBe(false)
+    expect(hasUnsavedChanges([], [], null)).toBe(false)
   })
 
   it('is dirty when there is data but no backup', () => {
-    expect(hasUnsavedChanges([makeNpc()], null)).toBe(true)
+    expect(hasUnsavedChanges([makeNpc()], [], null)).toBe(true)
   })
 
   it('ignores ids, creation times, and ordering', () => {
@@ -297,7 +342,7 @@ describe('hasUnsavedChanges', () => {
       makeNpc({ ...toInput(a), id: crypto.randomUUID(), createdAt: 'later' }),
     ]
 
-    expect(hasUnsavedChanges(reloaded, backup)).toBe(false)
+    expect(hasUnsavedChanges(reloaded, [], backup)).toBe(false)
   })
 
   it('is dirty when content changed since the backup', () => {
@@ -305,7 +350,7 @@ describe('hasUnsavedChanges', () => {
     const backup = makeBackup([npc])
     const edited = [makeNpc({ ...toInput(npc), id: npc.id, level: 99 })]
 
-    expect(hasUnsavedChanges(edited, backup)).toBe(true)
+    expect(hasUnsavedChanges(edited, [], backup)).toBe(true)
   })
 })
 

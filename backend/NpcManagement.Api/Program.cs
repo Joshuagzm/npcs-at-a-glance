@@ -8,6 +8,7 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
 builder.Services.AddSingleton<INpcRepository, InMemoryNpcRepository>();
+builder.Services.AddSingleton<ILocationRepository, InMemoryLocationRepository>();
 
 var app = builder.Build();
 
