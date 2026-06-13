@@ -563,12 +563,16 @@ function NpcFormDialog({
                       placeholder="—"
                       aria-label="Maximum hit points"
                       value={maxHp}
-                      onChange={(e) => {
-                        const next = e.target.value
-                        setMaxHp(next)
-                        // Lowering the max drags current HP down with it.
-                        if (next !== '' && Number(currentHp) > Number(next)) {
-                          setCurrentHp(next)
+                      onChange={(e) => setMaxHp(e.target.value)}
+                      onBlur={() => {
+                        // Only commit the clip on blur, so typing a larger
+                        // max doesn't momentarily drag current HP down.
+                        if (
+                          currentHp !== '' &&
+                          maxHp !== '' &&
+                          Number(currentHp) > Number(maxHp)
+                        ) {
+                          setCurrentHp(maxHp)
                         }
                       }}
                     />
