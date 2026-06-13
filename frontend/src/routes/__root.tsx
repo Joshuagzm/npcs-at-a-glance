@@ -1,4 +1,5 @@
 import { Link, Outlet, createRootRoute } from '@tanstack/react-router'
+import { ModeToggle } from '@/components/mode-toggle'
 
 export const Route = createRootRoute({
   component: RootLayout,
@@ -22,6 +23,9 @@ function RootLayout() {
           >
             NPCs
           </Link>
+          <div className="ml-auto">
+            <ModeToggle />
+          </div>
         </nav>
       </header>
       <main className="mx-auto max-w-5xl px-6 py-8">
