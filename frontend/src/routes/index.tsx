@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { Hammer, Settings, Users } from 'lucide-react'
+import { MapPin, Settings, Users } from 'lucide-react'
+import type { ReactNode } from 'react'
 import {
   Tooltip,
   TooltipContent,
@@ -14,6 +15,25 @@ export const Route = createFileRoute('/')({
 const tileClasses =
   'flex h-40 flex-col items-center justify-center gap-3 rounded-xl border bg-card p-6 text-center text-card-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 outline-none'
 
+function DisabledTile({ children }: { children: ReactNode }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span
+          className={cn(
+            tileClasses,
+            'cursor-not-allowed opacity-50 hover:bg-card hover:text-card-foreground',
+          )}
+          aria-disabled="true"
+        >
+          {children}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>Under development</TooltipContent>
+    </Tooltip>
+  )
+}
+
 function HomePage() {
   return (
     <section className="space-y-8">
@@ -25,26 +45,15 @@ function HomePage() {
           <span className="text-lg font-semibold">NPC Management</span>
         </Link>
 
-        <Link to="/settings" className={tileClasses}>
+        <DisabledTile>
+          <MapPin className="size-8" />
+          <span className="text-lg font-semibold">Location Management</span>
+        </DisabledTile>
+
+        <DisabledTile>
           <Settings className="size-8" />
           <span className="text-lg font-semibold">Settings</span>
-        </Link>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span
-              className={cn(
-                tileClasses,
-                'cursor-not-allowed opacity-50 hover:bg-card hover:text-card-foreground',
-              )}
-              aria-disabled="true"
-            >
-              <Hammer className="size-8" />
-              <span className="text-lg font-semibold">Coming soon</span>
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>Under development</TooltipContent>
-        </Tooltip>
+        </DisabledTile>
       </div>
     </section>
   )
