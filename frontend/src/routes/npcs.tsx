@@ -271,7 +271,14 @@ function NpcsPage() {
           </TableHeader>
           <TableBody>
             {npcsQuery.data.map((npc) => (
-              <TableRow key={npc.id}>
+              <TableRow
+                key={npc.id}
+                className="cursor-pointer"
+                onClick={() => {
+                  setEditing(npc)
+                  setDialogOpen(true)
+                }}
+              >
                 <TableCell className="font-medium">
                   {npc.name}
                   {npc.notes && (
@@ -335,7 +342,7 @@ function NpcsPage() {
                     '—'
                   )}
                 </TableCell>
-                <TableCell>
+                <TableCell onClick={(e) => e.stopPropagation()}>
                   <div className="flex justify-end gap-2">
                     <Button
                       variant="outline"
