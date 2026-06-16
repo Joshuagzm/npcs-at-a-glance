@@ -20,6 +20,11 @@ builder.Services.AddSingleton<ILocationRepository, InMemoryLocationRepository>()
 // Forge install (launched with --api); generation can take up to ~2 min on a
 // cold first request, so the timeout is generous.
 var forgeBaseUrl = builder.Configuration["Forge:BaseUrl"] ?? "http://127.0.0.1:7860";
+builder.Services.AddSingleton(new ForgeOptions
+{
+    Model = builder.Configuration["Forge:Model"],
+    Vae = builder.Configuration["Forge:Vae"],
+});
 builder.Services.AddHttpClient<IPortraitGenerator, ForgePortraitGenerator>(client =>
 {
     client.BaseAddress = new Uri(forgeBaseUrl);
