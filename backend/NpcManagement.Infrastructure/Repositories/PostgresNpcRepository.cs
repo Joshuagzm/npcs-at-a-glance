@@ -14,7 +14,8 @@ public class PostgresNpcRepository(NpgsqlDataSource dataSource) : INpcRepository
 
     private const string Columns =
         "id, name, role, location_id, level, is_hostile, notes, likes, dislikes, " +
-        "goals, current_hit_points, max_hit_points, stat_block, portrait, created_at";
+        "goals, current_hit_points, max_hit_points, stat_block, portrait, " +
+        "portrait_seed, race, gender, age, skin_color, appearance_details, created_at";
 
     public async Task<IReadOnlyList<Npc>> GetAllAsync(CancellationToken cancellationToken = default)
     {
@@ -45,7 +46,8 @@ public class PostgresNpcRepository(NpgsqlDataSource dataSource) : INpcRepository
     {
         await using var cmd = dataSource.CreateCommand(
             $"INSERT INTO npc.npcs ({Columns}) " +
-            "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)");
+            "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, " +
+            "$15, $16, $17, $18, $19, $20, $21)");
         AddParameters(cmd, npc);
         await cmd.ExecuteNonQueryAsync(cancellationToken);
 
@@ -59,7 +61,8 @@ public class PostgresNpcRepository(NpgsqlDataSource dataSource) : INpcRepository
             "name = $2, role = $3, location_id = $4, level = $5, is_hostile = $6, " +
             "notes = $7, likes = $8, dislikes = $9, goals = $10, " +
             "current_hit_points = $11, max_hit_points = $12, stat_block = $13, " +
-            "portrait = $14, created_at = $15 " +
+            "portrait = $14, portrait_seed = $15, race = $16, gender = $17, " +
+            "age = $18, skin_color = $19, appearance_details = $20, created_at = $21 " +
             "WHERE id = $1");
         AddParameters(cmd, npc);
         var rows = await cmd.ExecuteNonQueryAsync(cancellationToken);
@@ -98,6 +101,12 @@ public class PostgresNpcRepository(NpgsqlDataSource dataSource) : INpcRepository
                 : JsonSerializer.Serialize(npc.StatBlock, JsonOptions),
         });
         cmd.Parameters.AddWithValue((object?)npc.Portrait ?? DBNull.Value);
+        cmd.Parameters.AddWithValue((object?)npc.PortraitSeed ?? DBNull.Value);
+        cmd.Parameters.AddWithValue((object?)npc.Race ?? DBNull.Value);
+        cmd.Parameters.AddWithValue((object?)npc.Gender ?? DBNull.Value);
+        cmd.Parameters.AddWithValue((object?)npc.Age ?? DBNull.Value);
+        cmd.Parameters.AddWithValue((object?)npc.SkinColor ?? DBNull.Value);
+        cmd.Parameters.AddWithValue((object?)npc.AppearanceDetails ?? DBNull.Value);
         cmd.Parameters.AddWithValue(npc.CreatedAt);
     }
 
@@ -119,6 +128,12 @@ public class PostgresNpcRepository(NpgsqlDataSource dataSource) : INpcRepository
             ? null
             : JsonSerializer.Deserialize<NpcStatBlock>(reader.GetString(12), JsonOptions),
         Portrait = reader.IsDBNull(13) ? null : reader.GetString(13),
-        CreatedAt = reader.GetFieldValue<DateTimeOffset>(14),
+        PortraitSeed = reader.IsDBNull(14) ? null : reader.GetInt64(14),
+        Race = reader.IsDBNull(15) ? null : reader.GetString(15),
+        Gender = reader.IsDBNull(16) ? null : reader.GetString(16),
+        Age = reader.IsDBNull(17) ? null : reader.GetString(17),
+        SkinColor = reader.IsDBNull(18) ? null : reader.GetString(18),
+        AppearanceDetails = reader.IsDBNull(19) ? null : reader.GetString(19),
+        CreatedAt = reader.GetFieldValue<DateTimeOffset>(20),
     };
 }

@@ -75,6 +75,12 @@ function makeNpc(overrides: Partial<Npc> = {}): Npc {
       ],
     },
     portrait: null,
+    portraitSeed: null,
+    race: 'dwarf',
+    gender: 'Female',
+    age: 'Adult',
+    skinColor: null,
+    appearanceDetails: null,
     createdAt: '2026-06-11T00:00:00Z',
     ...overrides,
   }

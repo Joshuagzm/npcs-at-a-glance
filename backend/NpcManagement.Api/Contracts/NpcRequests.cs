@@ -37,7 +37,13 @@ public record CreateNpcRequest(
     [Range(0, 1000)] int? CurrentHitPoints = null,
     [Range(1, 1000)] int? MaxHitPoints = null,
     StatBlockRequest? StatBlock = null,
-    string? Portrait = null);
+    string? Portrait = null,
+    long? PortraitSeed = null,
+    string? Race = null,
+    string? Gender = null,
+    string? Age = null,
+    string? SkinColor = null,
+    string? AppearanceDetails = null);
 
 public record UpdateNpcRequest(
     [Required] string Name,
@@ -52,12 +58,23 @@ public record UpdateNpcRequest(
     [Range(0, 1000)] int? CurrentHitPoints,
     [Range(1, 1000)] int? MaxHitPoints,
     StatBlockRequest? StatBlock,
-    string? Portrait);
+    string? Portrait,
+    long? PortraitSeed,
+    string? Race,
+    string? Gender,
+    string? Age,
+    string? SkinColor,
+    string? AppearanceDetails);
 
 public record GeneratePortraitRequest(
     string? Race = null,
     string? Role = null,
     string? Name = null,
-    bool IsHostile = false);
+    bool IsHostile = false,
+    string? Gender = null,
+    string? Age = null,
+    string? SkinColor = null,
+    string? AppearanceDetails = null,
+    long? Seed = null);
 
-public record GeneratePortraitResponse(string Image);
+public record GeneratePortraitResponse(string Image, long Seed);

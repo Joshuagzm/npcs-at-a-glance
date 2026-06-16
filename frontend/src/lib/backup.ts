@@ -79,6 +79,12 @@ export function toInput(npc: Npc): NpcInput {
     maxHitPoints: npc.maxHitPoints ?? null,
     statBlock: npc.statBlock,
     portrait: npc.portrait ?? null,
+    portraitSeed: npc.portraitSeed ?? null,
+    race: npc.race ?? null,
+    gender: npc.gender ?? null,
+    age: npc.age ?? null,
+    skinColor: npc.skinColor ?? null,
+    appearanceDetails: npc.appearanceDetails ?? null,
   }
 }
 

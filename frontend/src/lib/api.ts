@@ -49,6 +49,12 @@ export interface Npc {
   maxHitPoints: number | null
   statBlock: StatBlock | null
   portrait: string | null
+  portraitSeed: number | null
+  race: string | null
+  gender: string | null
+  age: string | null
+  skinColor: string | null
+  appearanceDetails: string | null
   createdAt: string
 }
 
@@ -66,6 +72,12 @@ export interface NpcInput {
   maxHitPoints: number | null
   statBlock: StatBlock | null
   portrait: string | null
+  portraitSeed: number | null
+  race: string | null
+  gender: string | null
+  age: string | null
+  skinColor: string | null
+  appearanceDetails: string | null
 }
 
 export interface PortraitRequest {
@@ -73,6 +85,16 @@ export interface PortraitRequest {
   role: string | null
   name: string | null
   isHostile: boolean
+  gender: string | null
+  age: string | null
+  skinColor: string | null
+  appearanceDetails: string | null
+  seed: number | null
+}
+
+export interface PortraitResult {
+  image: string
+  seed: number
 }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
@@ -116,15 +138,14 @@ export function deleteNpc(id: string): Promise<void> {
   return request<void>(`/api/npcs/${id}`, { method: 'DELETE' })
 }
 
-// Returns a base64-encoded PNG (no data-URL prefix).
-export async function generatePortrait(
+// Returns a base64-encoded PNG (no data-URL prefix) and the seed it used.
+export function generatePortrait(
   input: PortraitRequest,
-): Promise<string> {
-  const { image } = await request<{ image: string }>('/api/npcs/portrait', {
+): Promise<PortraitResult> {
+  return request<PortraitResult>('/api/npcs/portrait', {
     method: 'POST',
     body: JSON.stringify(input),
   })
-  return image
 }
 
 export function listLocations(): Promise<Location[]> {

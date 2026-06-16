@@ -69,6 +69,19 @@ export const Route = createFileRoute('/npcs')({
 // "no location assigned".
 const NO_LOCATION = '__none__'
 
+// Appearance dropdown options. The sentinel stands in for "unspecified"
+// because Radix Select items can't use an empty value.
+const UNSPECIFIED = '__unspecified__'
+const GENDERS = ['Male', 'Female'] as const
+const AGES = [
+  'Child',
+  'Adolescent',
+  'Young adult',
+  'Adult',
+  'Middle-aged',
+  'Elderly',
+] as const
+
 // Likes/dislikes/goals are stored as a single newline-joined string, but
 // edited and displayed as a list of entries.
 function splitList(value: string | null | undefined): string[] {
@@ -473,8 +486,18 @@ function NpcFormDialog({
     npc?.currentHitPoints?.toString() ?? '',
   )
   const [maxHp, setMaxHp] = useState(npc?.maxHitPoints?.toString() ?? '')
-  const [race, setRace] = useState<Race>('human')
+  const [race, setRace] = useState<Race>((npc?.race as Race) ?? 'human')
+  const [gender, setGender] = useState(npc?.gender ?? '')
+  const [age, setAge] = useState(npc?.age ?? '')
+  const [skinColor, setSkinColor] = useState(npc?.skinColor ?? '')
+  const [appearanceDetails, setAppearanceDetails] = useState(
+    npc?.appearanceDetails ?? '',
+  )
   const [portrait, setPortrait] = useState<string | null>(npc?.portrait ?? null)
+  // Locked once a portrait is generated, so regenerations stay consistent.
+  const [portraitSeed, setPortraitSeed] = useState<number | null>(
+    npc?.portraitSeed ?? null,
+  )
   const [statBlock, setStatBlock] = useState<StatBlock | null>(
     npc?.statBlock ?? null,
   )
@@ -486,8 +509,16 @@ function NpcFormDialog({
         role: role.trim() || null,
         name: name.trim() || null,
         isHostile,
+        gender: gender || null,
+        age: age || null,
+        skinColor: skinColor.trim() || null,
+        appearanceDetails: appearanceDetails.trim() || null,
+        seed: portraitSeed,
       }),
-    onSuccess: setPortrait,
+    onSuccess: (result) => {
+      setPortrait(result.image)
+      setPortraitSeed(result.seed)
+    },
   })
   const [monsterSearch, setMonsterSearch] = useState('')
   const [submittedSearch, setSubmittedSearch] = useState('')
@@ -532,6 +563,12 @@ function NpcFormDialog({
       maxHitPoints: maxHp === '' ? null : Number(maxHp),
       statBlock,
       portrait,
+      portraitSeed,
+      race,
+      gender: gender || null,
+      age: age || null,
+      skinColor: skinColor.trim() || null,
+      appearanceDetails: appearanceDetails.trim() || null,
     })
   }
 
@@ -541,7 +578,7 @@ function NpcFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="max-h-[90vh] w-1/2 max-w-none overflow-y-auto sm:max-w-none">
+      <DialogContent className="max-h-[90vh] w-3/4 max-w-none overflow-y-auto sm:max-w-none">
         <DialogHeader>
           <DialogTitle>{npc ? `Edit ${npc.name}` : 'Add NPC'}</DialogTitle>
           <DialogDescription>
@@ -549,197 +586,9 @@ function NpcFormDialog({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="npc-name">Name</Label>
-                  <Input
-                    id="npc-name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="npc-role">Role</Label>
-                  <Input
-                    id="npc-role"
-                    value={role}
-                    onChange={(e) => setRole(e.target.value)}
-                    placeholder="Merchant, Guard, …"
-                  />
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Select
-                  value={race}
-                  onValueChange={(value) => setRace(value as Race)}
-                >
-                  <SelectTrigger
-                    className="w-44"
-                    aria-label="Race for random name"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {RACES.map((r) => (
-                      <SelectItem key={r} value={r}>
-                        {RACE_LABELS[r]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setName(generateName(race))}
-                >
-                  Random name
-                </Button>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="npc-location">Location</Label>
-                  <Select
-                    value={locationId || NO_LOCATION}
-                    onValueChange={(value) =>
-                      setLocationId(value === NO_LOCATION ? '' : value)
-                    }
-                  >
-                    <SelectTrigger id="npc-location" className="w-full">
-                      <SelectValue placeholder="No location" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={NO_LOCATION}>No location</SelectItem>
-                      {locations.map((loc) => (
-                        <SelectItem key={loc.id} value={loc.id}>
-                          {loc.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="npc-level">Level (1–100)</Label>
-                  <Input
-                    id="npc-level"
-                    type="number"
-                    min={1}
-                    max={100}
-                    value={level}
-                    onChange={(e) => setLevel(Number(e.target.value))}
-                    required
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Hit points</Label>
-                <div className="flex items-end gap-3">
-                  <div className="space-y-1">
-                    <Label
-                      htmlFor="npc-current-hp"
-                      className="text-xs font-normal text-muted-foreground"
-                    >
-                      Current
-                    </Label>
-                    <Input
-                      id="npc-current-hp"
-                      type="number"
-                      min={0}
-                      max={maxHp === '' ? 1000 : Number(maxHp)}
-                      className="w-20 text-center"
-                      placeholder="—"
-                      aria-label="Current hit points"
-                      value={currentHp}
-                      onChange={(e) => setCurrentHp(e.target.value)}
-                      onBlur={() => {
-                        // Clip current HP down to max if it overshoots.
-                        if (
-                          currentHp !== '' &&
-                          maxHp !== '' &&
-                          Number(currentHp) > Number(maxHp)
-                        ) {
-                          setCurrentHp(maxHp)
-                        }
-                      }}
-                    />
-                  </div>
-                  <span className="pb-2 text-muted-foreground">/</span>
-                  <div className="space-y-1">
-                    <Label
-                      htmlFor="npc-max-hp"
-                      className="text-xs font-normal text-muted-foreground"
-                    >
-                      Max
-                    </Label>
-                    <Input
-                      id="npc-max-hp"
-                      type="number"
-                      min={1}
-                      max={1000}
-                      className="w-20 text-center"
-                      placeholder="—"
-                      aria-label="Maximum hit points"
-                      value={maxHp}
-                      onChange={(e) => setMaxHp(e.target.value)}
-                      onBlur={() => {
-                        // Only commit the clip on blur, so typing a larger
-                        // max doesn't momentarily drag current HP down.
-                        if (
-                          currentHp !== '' &&
-                          maxHp !== '' &&
-                          Number(currentHp) > Number(maxHp)
-                        ) {
-                          setCurrentHp(maxHp)
-                        }
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <EditableList
-                  id="npc-likes"
-                  label="Likes"
-                  items={likes}
-                  onChange={setLikes}
-                  placeholder="Fine ale, gossip, …"
-                />
-                <EditableList
-                  id="npc-dislikes"
-                  label="Dislikes"
-                  items={dislikes}
-                  onChange={setDislikes}
-                  placeholder="Nobles, loud noises, …"
-                />
-              </div>
-              <EditableList
-                id="npc-goals"
-                label="Goals"
-                items={goals}
-                onChange={setGoals}
-                placeholder="What does this character want?"
-              />
-              <div className="space-y-2">
-                <Label htmlFor="npc-notes">Notes</Label>
-                <Textarea
-                  id="npc-notes"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows={3}
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="npc-hostile"
-                  checked={isHostile}
-                  onCheckedChange={(checked) => setIsHostile(checked === true)}
-                />
-                <Label htmlFor="npc-hostile">Hostile toward players</Label>
-              </div>
-            </div>
-            <div className="space-y-4">
+          <div className="flex gap-6">
+            {/* Portrait panel — the appearance fields feed its prompt. */}
+            <div className="w-72 shrink-0 space-y-4">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label>Portrait</Label>
@@ -779,7 +628,7 @@ function NpcFormDialog({
                   <div className="flex aspect-2/3 max-h-96 w-full items-center justify-center rounded-md border border-dashed p-4 text-center text-xs text-muted-foreground">
                     {portraitMutation.isPending
                       ? 'Generating portrait — this can take up to a couple of minutes…'
-                      : 'No portrait yet. Generate one from the race and role.'}
+                      : 'No portrait yet. Set the appearance below and generate one.'}
                   </div>
                 )}
                 {portraitMutation.isError && (
@@ -787,6 +636,268 @@ function NpcFormDialog({
                     {portraitMutation.error.message}
                   </p>
                 )}
+                {portraitSeed !== null && (
+                  <p className="text-center text-xs text-muted-foreground">
+                    Seed {portraitSeed} · reused on regenerate
+                  </p>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="npc-gender">Gender</Label>
+                  <Select
+                    value={gender || UNSPECIFIED}
+                    onValueChange={(value) =>
+                      setGender(value === UNSPECIFIED ? '' : value)
+                    }
+                  >
+                    <SelectTrigger id="npc-gender" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={UNSPECIFIED}>Unspecified</SelectItem>
+                      {GENDERS.map((g) => (
+                        <SelectItem key={g} value={g}>
+                          {g}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="npc-age">Age</Label>
+                  <Select
+                    value={age || UNSPECIFIED}
+                    onValueChange={(value) =>
+                      setAge(value === UNSPECIFIED ? '' : value)
+                    }
+                  >
+                    <SelectTrigger id="npc-age" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={UNSPECIFIED}>Unspecified</SelectItem>
+                      {AGES.map((a) => (
+                        <SelectItem key={a} value={a}>
+                          {a}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="npc-skin">Skin color</Label>
+                <Input
+                  id="npc-skin"
+                  value={skinColor}
+                  onChange={(e) => setSkinColor(e.target.value)}
+                  placeholder="Olive, pale, dark, green, …"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="npc-appearance">Additional details</Label>
+                <Textarea
+                  id="npc-appearance"
+                  value={appearanceDetails}
+                  onChange={(e) => setAppearanceDetails(e.target.value)}
+                  rows={3}
+                  placeholder="Hair, clothing, scars, expression — anything to add to the portrait prompt."
+                />
+              </div>
+            </div>
+            {/* Main portion */}
+            <div className="grid flex-1 grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="npc-name">Name</Label>
+                    <Input
+                      id="npc-name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="npc-role">Role</Label>
+                    <Input
+                      id="npc-role"
+                      value={role}
+                      onChange={(e) => setRole(e.target.value)}
+                      placeholder="Merchant, Guard, …"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={race}
+                    onValueChange={(value) => setRace(value as Race)}
+                  >
+                    <SelectTrigger
+                      className="w-44"
+                      aria-label="Race for random name"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {RACES.map((r) => (
+                        <SelectItem key={r} value={r}>
+                          {RACE_LABELS[r]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setName(generateName(race))}
+                  >
+                    Random name
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="npc-location">Location</Label>
+                    <Select
+                      value={locationId || NO_LOCATION}
+                      onValueChange={(value) =>
+                        setLocationId(value === NO_LOCATION ? '' : value)
+                      }
+                    >
+                      <SelectTrigger id="npc-location" className="w-full">
+                        <SelectValue placeholder="No location" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NO_LOCATION}>No location</SelectItem>
+                        {locations.map((loc) => (
+                          <SelectItem key={loc.id} value={loc.id}>
+                            {loc.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="npc-level">Level (1–100)</Label>
+                    <Input
+                      id="npc-level"
+                      type="number"
+                      min={1}
+                      max={100}
+                      value={level}
+                      onChange={(e) => setLevel(Number(e.target.value))}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Hit points</Label>
+                  <div className="flex items-end gap-3">
+                    <div className="space-y-1">
+                      <Label
+                        htmlFor="npc-current-hp"
+                        className="text-xs font-normal text-muted-foreground"
+                      >
+                        Current
+                      </Label>
+                      <Input
+                        id="npc-current-hp"
+                        type="number"
+                        min={0}
+                        max={maxHp === '' ? 1000 : Number(maxHp)}
+                        className="w-20 text-center"
+                        placeholder="—"
+                        aria-label="Current hit points"
+                        value={currentHp}
+                        onChange={(e) => setCurrentHp(e.target.value)}
+                        onBlur={() => {
+                          // Clip current HP down to max if it overshoots.
+                          if (
+                            currentHp !== '' &&
+                            maxHp !== '' &&
+                            Number(currentHp) > Number(maxHp)
+                          ) {
+                            setCurrentHp(maxHp)
+                          }
+                        }}
+                      />
+                    </div>
+                    <span className="pb-2 text-muted-foreground">/</span>
+                    <div className="space-y-1">
+                      <Label
+                        htmlFor="npc-max-hp"
+                        className="text-xs font-normal text-muted-foreground"
+                      >
+                        Max
+                      </Label>
+                      <Input
+                        id="npc-max-hp"
+                        type="number"
+                        min={1}
+                        max={1000}
+                        className="w-20 text-center"
+                        placeholder="—"
+                        aria-label="Maximum hit points"
+                        value={maxHp}
+                        onChange={(e) => setMaxHp(e.target.value)}
+                        onBlur={() => {
+                          // Only commit the clip on blur, so typing a larger
+                          // max doesn't momentarily drag current HP down.
+                          if (
+                            currentHp !== '' &&
+                            maxHp !== '' &&
+                            Number(currentHp) > Number(maxHp)
+                          ) {
+                            setCurrentHp(maxHp)
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <EditableList
+                    id="npc-likes"
+                    label="Likes"
+                    items={likes}
+                    onChange={setLikes}
+                    placeholder="Fine ale, gossip, …"
+                  />
+                  <EditableList
+                    id="npc-dislikes"
+                    label="Dislikes"
+                    items={dislikes}
+                    onChange={setDislikes}
+                    placeholder="Nobles, loud noises, …"
+                  />
+                </div>
+                <EditableList
+                  id="npc-goals"
+                  label="Goals"
+                  items={goals}
+                  onChange={setGoals}
+                  placeholder="What does this character want?"
+                />
+                <div className="space-y-2">
+                  <Label htmlFor="npc-notes">Notes</Label>
+                  <Textarea
+                    id="npc-notes"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    rows={3}
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="npc-hostile"
+                    checked={isHostile}
+                    onCheckedChange={(checked) =>
+                      setIsHostile(checked === true)
+                    }
+                  />
+                  <Label htmlFor="npc-hostile">Hostile toward players</Label>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="npc-monster">Stat block (5e SRD)</Label>

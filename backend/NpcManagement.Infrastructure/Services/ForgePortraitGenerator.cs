@@ -25,7 +25,7 @@ public class ForgePortraitGenerator(HttpClient httpClient) : IPortraitGenerator
         + "blurry, jpeg artifacts, text, watermark, signature, username, "
         + "cropped, out of frame, nsfw, nude";
 
-    public async Task<string> GenerateAsync(
+    public async Task<PortraitResult> GenerateAsync(
         PortraitRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -33,7 +33,7 @@ public class ForgePortraitGenerator(HttpClient httpClient) : IPortraitGenerator
         {
             prompt = string.Format(PromptTemplate, BuildSubject(request)),
             negative_prompt = NegativePrompt,
-            seed = -1,
+            seed = request.Seed ?? -1,
             sampler_name = "DPM++ 2M",
             scheduler = "Karras",
             steps = 28,
@@ -83,24 +83,70 @@ public class ForgePortraitGenerator(HttpClient httpClient) : IPortraitGenerator
                 "Image generator returned no image.");
         }
 
-        return images[0].GetString()
+        var image = images[0].GetString()
             ?? throw new PortraitGenerationException(
                 "Image generator returned an empty image.");
+
+        return new PortraitResult(image, ExtractSeed(doc.RootElement, request.Seed));
+    }
+
+    // txt2img echoes the actual seed in the JSON-encoded "info" string. When we
+    // requested a fixed seed it round-trips; when we passed -1 this is how we
+    // learn the seed Forge chose so the caller can reuse it.
+    private static long ExtractSeed(JsonElement root, long? requested)
+    {
+        try
+        {
+            if (root.TryGetProperty("info", out var info)
+                && info.GetString() is { } infoJson)
+            {
+                using var infoDoc = JsonDocument.Parse(infoJson);
+                if (infoDoc.RootElement.TryGetProperty("seed", out var seed)
+                    && seed.TryGetInt64(out var value))
+                {
+                    return value;
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            // Fall through to the requested seed below.
+        }
+
+        return requested ?? -1;
     }
 
     private static string BuildSubject(PortraitRequest request)
     {
-        var descriptors = new[] { request.Race, request.Role }
-            .Where(part => !string.IsNullOrWhiteSpace(part))
-            .Select(part => part!.Trim());
+        // A natural phrase, e.g. "middle-aged female elf merchant".
+        var phrase = string.Join(
+            " ",
+            new[] { request.Age, request.Gender, request.Race, request.Role }
+                .Where(part => !string.IsNullOrWhiteSpace(part))
+                .Select(part => part!.Trim()));
 
-        var subject = string.Join(", ", descriptors);
-        if (string.IsNullOrWhiteSpace(subject))
+        if (string.IsNullOrWhiteSpace(phrase))
         {
-            subject = "person";
+            phrase = "person";
         }
 
-        return request.IsHostile ? $"menacing, villainous {subject}" : subject;
+        if (request.IsHostile)
+        {
+            phrase = $"menacing, villainous {phrase}";
+        }
+
+        // Comma-separated extra descriptors appended to the subject.
+        var extras = new List<string> { phrase };
+        if (!string.IsNullOrWhiteSpace(request.SkinColor))
+        {
+            extras.Add($"{request.SkinColor.Trim()} skin");
+        }
+        if (!string.IsNullOrWhiteSpace(request.AppearanceDetails))
+        {
+            extras.Add(request.AppearanceDetails.Trim());
+        }
+
+        return string.Join(", ", extras);
     }
 
     private static string Truncate(string value, int max) =>
