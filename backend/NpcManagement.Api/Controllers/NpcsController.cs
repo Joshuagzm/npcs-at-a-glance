@@ -53,6 +53,12 @@ public class NpcsController : ControllerBase
             MaxHitPoints = request.MaxHitPoints,
             StatBlock = ToStatBlock(request.StatBlock),
             Portrait = request.Portrait,
+            PortraitSeed = request.PortraitSeed,
+            Race = request.Race,
+            Gender = request.Gender,
+            Age = request.Age,
+            SkinColor = request.SkinColor,
+            AppearanceDetails = request.AppearanceDetails,
         };
 
         var created = await _npcRepository.AddAsync(npc, cancellationToken);
@@ -81,6 +87,12 @@ public class NpcsController : ControllerBase
         existing.MaxHitPoints = request.MaxHitPoints;
         existing.StatBlock = ToStatBlock(request.StatBlock);
         existing.Portrait = request.Portrait;
+        existing.PortraitSeed = request.PortraitSeed;
+        existing.Race = request.Race;
+        existing.Gender = request.Gender;
+        existing.Age = request.Age;
+        existing.SkinColor = request.SkinColor;
+        existing.AppearanceDetails = request.AppearanceDetails;
 
         var updated = await _npcRepository.UpdateAsync(existing, cancellationToken);
         return updated ? Ok(existing) : NotFound();
@@ -93,11 +105,13 @@ public class NpcsController : ControllerBase
     {
         try
         {
-            var image = await _portraitGenerator.GenerateAsync(
+            var result = await _portraitGenerator.GenerateAsync(
                 new PortraitRequest(
-                    request.Race, request.Role, request.Name, request.IsHostile),
+                    request.Race, request.Role, request.Name, request.IsHostile,
+                    request.Gender, request.Age, request.SkinColor,
+                    request.AppearanceDetails, request.Seed),
                 cancellationToken);
-            return Ok(new GeneratePortraitResponse(image));
+            return Ok(new GeneratePortraitResponse(result.Image, result.Seed));
         }
         catch (PortraitGenerationException ex)
         {
