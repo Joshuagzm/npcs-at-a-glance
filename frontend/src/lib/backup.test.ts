@@ -74,6 +74,7 @@ function makeNpc(overrides: Partial<Npc> = {}): Npc {
         },
       ],
     },
+    portrait: null,
     createdAt: '2026-06-11T00:00:00Z',
     ...overrides,
   }

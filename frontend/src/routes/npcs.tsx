@@ -34,6 +34,7 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   createNpc,
   deleteNpc,
+  generatePortrait,
   listLocations,
   listNpcs,
   updateNpc,
@@ -473,9 +474,21 @@ function NpcFormDialog({
   )
   const [maxHp, setMaxHp] = useState(npc?.maxHitPoints?.toString() ?? '')
   const [race, setRace] = useState<Race>('human')
+  const [portrait, setPortrait] = useState<string | null>(npc?.portrait ?? null)
   const [statBlock, setStatBlock] = useState<StatBlock | null>(
     npc?.statBlock ?? null,
   )
+
+  const portraitMutation = useMutation({
+    mutationFn: () =>
+      generatePortrait({
+        race: RACE_LABELS[race],
+        role: role.trim() || null,
+        name: name.trim() || null,
+        isHostile,
+      }),
+    onSuccess: setPortrait,
+  })
   const [monsterSearch, setMonsterSearch] = useState('')
   const [submittedSearch, setSubmittedSearch] = useState('')
 
@@ -518,6 +531,7 @@ function NpcFormDialog({
       currentHitPoints: currentHp === '' ? null : Number(currentHp),
       maxHitPoints: maxHp === '' ? null : Number(maxHp),
       statBlock,
+      portrait,
     })
   }
 
@@ -725,146 +739,199 @@ function NpcFormDialog({
                 <Label htmlFor="npc-hostile">Hostile toward players</Label>
               </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="npc-monster">Stat block (5e SRD)</Label>
-              {statBlock ? (
-                <div className="space-y-1 rounded-md border p-3 text-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium">
-                      {statBlock.monsterName}
-                      <span className="text-muted-foreground">
-                        {' '}
-                        — {statBlock.size} {statBlock.type}, CR{' '}
-                        {formatChallengeRating(statBlock.challengeRating)}
-                      </span>
-                    </span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setStatBlock(null)}
-                    >
-                      Remove
-                    </Button>
-                  </div>
-                  <p className="text-muted-foreground">
-                    AC {statBlock.armorClass} · HP {statBlock.hitPoints} · Speed{' '}
-                    {statBlock.speed}
-                  </p>
-                  <p className="text-muted-foreground">
-                    STR {statBlock.strength} · DEX {statBlock.dexterity} · CON{' '}
-                    {statBlock.constitution} · INT {statBlock.intelligence} ·
-                    WIS {statBlock.wisdom} · CHA {statBlock.charisma}
-                  </p>
-                  {statBlock.flavorText && (
-                    <p className="max-h-24 overflow-y-auto border-t pt-1 text-xs text-muted-foreground italic">
-                      {statBlock.flavorText}
-                    </p>
-                  )}
-                  {(statBlockTraits.length > 0 ||
-                    statBlockActions.length > 0) && (
-                    <div className="max-h-80 space-y-3 overflow-y-auto border-t pt-2">
-                      {statBlockTraits.length > 0 && (
-                        <div className="space-y-1">
-                          <p className="text-xs font-semibold tracking-wide uppercase">
-                            Traits
-                          </p>
-                          {statBlockTraits.map((trait) => (
-                            <p
-                              key={trait.name}
-                              className="text-xs text-muted-foreground"
-                            >
-                              <span className="font-medium text-foreground">
-                                {trait.name}.
-                              </span>{' '}
-                              {trait.description}
-                            </p>
-                          ))}
-                        </div>
-                      )}
-                      {statBlockActions.length > 0 && (
-                        <div className="space-y-1">
-                          <p className="text-xs font-semibold tracking-wide uppercase">
-                            Actions
-                          </p>
-                          {statBlockActions.map((action) => (
-                            <p
-                              key={action.name}
-                              className="text-xs text-muted-foreground"
-                            >
-                              <span className="font-medium text-foreground">
-                                {action.name}.
-                              </span>{' '}
-                              {action.description}
-                            </p>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      id="npc-monster"
-                      value={monsterSearch}
-                      onChange={(e) => setMonsterSearch(e.target.value)}
-                      placeholder="Search monsters — goblin, mage, …"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault()
-                          setSubmittedSearch(monsterSearch.trim())
-                        }
-                      }}
-                    />
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Portrait</Label>
+                  <div className="flex gap-2">
+                    {portrait && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setPortrait(null)}
+                      >
+                        Remove
+                      </Button>
+                    )}
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => setSubmittedSearch(monsterSearch.trim())}
+                      size="sm"
+                      disabled={portraitMutation.isPending}
+                      onClick={() => portraitMutation.mutate()}
                     >
-                      Search
+                      {portraitMutation.isPending
+                        ? 'Generating…'
+                        : portrait
+                          ? 'Regenerate'
+                          : 'Generate portrait'}
                     </Button>
                   </div>
-                  {monstersQuery.isFetching && (
-                    <p className="text-sm text-muted-foreground">Searching…</p>
-                  )}
-                  {monstersQuery.isError && (
-                    <p className="text-sm text-destructive">
-                      {monstersQuery.error.message}
+                </div>
+                {portrait ? (
+                  <img
+                    src={`data:image/png;base64,${portrait}`}
+                    alt={`Portrait of ${name || 'this NPC'}`}
+                    className="mx-auto max-h-96 rounded-md border"
+                  />
+                ) : (
+                  <div className="flex aspect-2/3 max-h-96 w-full items-center justify-center rounded-md border border-dashed p-4 text-center text-xs text-muted-foreground">
+                    {portraitMutation.isPending
+                      ? 'Generating portrait — this can take up to a couple of minutes…'
+                      : 'No portrait yet. Generate one from the race and role.'}
+                  </div>
+                )}
+                {portraitMutation.isError && (
+                  <p className="text-sm text-destructive">
+                    {portraitMutation.error.message}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="npc-monster">Stat block (5e SRD)</Label>
+                {statBlock ? (
+                  <div className="space-y-1 rounded-md border p-3 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium">
+                        {statBlock.monsterName}
+                        <span className="text-muted-foreground">
+                          {' '}
+                          — {statBlock.size} {statBlock.type}, CR{' '}
+                          {formatChallengeRating(statBlock.challengeRating)}
+                        </span>
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setStatBlock(null)}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                    <p className="text-muted-foreground">
+                      AC {statBlock.armorClass} · HP {statBlock.hitPoints} ·
+                      Speed {statBlock.speed}
                     </p>
-                  )}
-                  {monstersQuery.isSuccess &&
-                    monstersQuery.data.length === 0 && (
-                      <p className="text-sm text-muted-foreground">
-                        No monsters matched.
+                    <p className="text-muted-foreground">
+                      STR {statBlock.strength} · DEX {statBlock.dexterity} · CON{' '}
+                      {statBlock.constitution} · INT {statBlock.intelligence} ·
+                      WIS {statBlock.wisdom} · CHA {statBlock.charisma}
+                    </p>
+                    {statBlock.flavorText && (
+                      <p className="max-h-24 overflow-y-auto border-t pt-1 text-xs text-muted-foreground italic">
+                        {statBlock.flavorText}
                       </p>
                     )}
-                  {monstersQuery.isSuccess && monstersQuery.data.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {monstersQuery.data.slice(0, 8).map((monster) => (
-                        <Button
-                          key={monster.index}
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          disabled={statBlockMutation.isPending}
-                          onClick={() =>
-                            statBlockMutation.mutate(monster.index)
+                    {(statBlockTraits.length > 0 ||
+                      statBlockActions.length > 0) && (
+                      <div className="max-h-80 space-y-3 overflow-y-auto border-t pt-2">
+                        {statBlockTraits.length > 0 && (
+                          <div className="space-y-1">
+                            <p className="text-xs font-semibold tracking-wide uppercase">
+                              Traits
+                            </p>
+                            {statBlockTraits.map((trait) => (
+                              <p
+                                key={trait.name}
+                                className="text-xs text-muted-foreground"
+                              >
+                                <span className="font-medium text-foreground">
+                                  {trait.name}.
+                                </span>{' '}
+                                {trait.description}
+                              </p>
+                            ))}
+                          </div>
+                        )}
+                        {statBlockActions.length > 0 && (
+                          <div className="space-y-1">
+                            <p className="text-xs font-semibold tracking-wide uppercase">
+                              Actions
+                            </p>
+                            {statBlockActions.map((action) => (
+                              <p
+                                key={action.name}
+                                className="text-xs text-muted-foreground"
+                              >
+                                <span className="font-medium text-foreground">
+                                  {action.name}.
+                                </span>{' '}
+                                {action.description}
+                              </p>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="npc-monster"
+                        value={monsterSearch}
+                        onChange={(e) => setMonsterSearch(e.target.value)}
+                        placeholder="Search monsters — goblin, mage, …"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            setSubmittedSearch(monsterSearch.trim())
                           }
-                        >
-                          {monster.name}
-                        </Button>
-                      ))}
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setSubmittedSearch(monsterSearch.trim())}
+                      >
+                        Search
+                      </Button>
                     </div>
-                  )}
-                  {statBlockMutation.isError && (
-                    <p className="text-sm text-destructive">
-                      {statBlockMutation.error.message}
-                    </p>
-                  )}
-                </>
-              )}
+                    {monstersQuery.isFetching && (
+                      <p className="text-sm text-muted-foreground">
+                        Searching…
+                      </p>
+                    )}
+                    {monstersQuery.isError && (
+                      <p className="text-sm text-destructive">
+                        {monstersQuery.error.message}
+                      </p>
+                    )}
+                    {monstersQuery.isSuccess &&
+                      monstersQuery.data.length === 0 && (
+                        <p className="text-sm text-muted-foreground">
+                          No monsters matched.
+                        </p>
+                      )}
+                    {monstersQuery.isSuccess &&
+                      monstersQuery.data.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {monstersQuery.data.slice(0, 8).map((monster) => (
+                            <Button
+                              key={monster.index}
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              disabled={statBlockMutation.isPending}
+                              onClick={() =>
+                                statBlockMutation.mutate(monster.index)
+                              }
+                            >
+                              {monster.name}
+                            </Button>
+                          ))}
+                        </div>
+                      )}
+                    {statBlockMutation.isError && (
+                      <p className="text-sm text-destructive">
+                        {statBlockMutation.error.message}
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           </div>
           {error && <p className="text-sm text-destructive">{error.message}</p>}

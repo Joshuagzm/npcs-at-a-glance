@@ -78,6 +78,7 @@ export function toInput(npc: Npc): NpcInput {
     currentHitPoints: npc.currentHitPoints ?? null,
     maxHitPoints: npc.maxHitPoints ?? null,
     statBlock: npc.statBlock,
+    portrait: npc.portrait ?? null,
   }
 }
 

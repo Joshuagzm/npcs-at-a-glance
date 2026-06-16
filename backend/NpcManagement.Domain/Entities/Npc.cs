@@ -15,5 +15,8 @@ public class Npc
     public int? CurrentHitPoints { get; set; }
     public int? MaxHitPoints { get; set; }
     public NpcStatBlock? StatBlock { get; set; }
+    // Base64-encoded PNG portrait (no data-URL prefix), generated via the
+    // image-generation service. Null until one is generated.
+    public string? Portrait { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }

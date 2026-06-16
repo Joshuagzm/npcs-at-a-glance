@@ -36,7 +36,8 @@ public record CreateNpcRequest(
     string? Goals = null,
     [Range(0, 1000)] int? CurrentHitPoints = null,
     [Range(1, 1000)] int? MaxHitPoints = null,
-    StatBlockRequest? StatBlock = null);
+    StatBlockRequest? StatBlock = null,
+    string? Portrait = null);
 
 public record UpdateNpcRequest(
     [Required] string Name,
@@ -50,4 +51,13 @@ public record UpdateNpcRequest(
     string? Goals,
     [Range(0, 1000)] int? CurrentHitPoints,
     [Range(1, 1000)] int? MaxHitPoints,
-    StatBlockRequest? StatBlock);
+    StatBlockRequest? StatBlock,
+    string? Portrait);
+
+public record GeneratePortraitRequest(
+    string? Race = null,
+    string? Role = null,
+    string? Name = null,
+    bool IsHostile = false);
+
+public record GeneratePortraitResponse(string Image);

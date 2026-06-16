@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using NpcManagement.Api.Contracts;
 using NpcManagement.Domain.Entities;
 using NpcManagement.Domain.Repositories;
+using NpcManagement.Domain.Services;
 
 namespace NpcManagement.Api.Controllers;
 
@@ -10,10 +11,14 @@ namespace NpcManagement.Api.Controllers;
 public class NpcsController : ControllerBase
 {
     private readonly INpcRepository _npcRepository;
+    private readonly IPortraitGenerator _portraitGenerator;
 
-    public NpcsController(INpcRepository npcRepository)
+    public NpcsController(
+        INpcRepository npcRepository,
+        IPortraitGenerator portraitGenerator)
     {
         _npcRepository = npcRepository;
+        _portraitGenerator = portraitGenerator;
     }
 
     [HttpGet]
@@ -47,6 +52,7 @@ public class NpcsController : ControllerBase
             CurrentHitPoints = request.CurrentHitPoints,
             MaxHitPoints = request.MaxHitPoints,
             StatBlock = ToStatBlock(request.StatBlock),
+            Portrait = request.Portrait,
         };
 
         var created = await _npcRepository.AddAsync(npc, cancellationToken);
@@ -74,9 +80,30 @@ public class NpcsController : ControllerBase
         existing.CurrentHitPoints = request.CurrentHitPoints;
         existing.MaxHitPoints = request.MaxHitPoints;
         existing.StatBlock = ToStatBlock(request.StatBlock);
+        existing.Portrait = request.Portrait;
 
         var updated = await _npcRepository.UpdateAsync(existing, cancellationToken);
         return updated ? Ok(existing) : NotFound();
+    }
+
+    [HttpPost("portrait")]
+    public async Task<ActionResult<GeneratePortraitResponse>> GeneratePortrait(
+        GeneratePortraitRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var image = await _portraitGenerator.GenerateAsync(
+                new PortraitRequest(
+                    request.Race, request.Role, request.Name, request.IsHostile),
+                cancellationToken);
+            return Ok(new GeneratePortraitResponse(image));
+        }
+        catch (PortraitGenerationException ex)
+        {
+            // 502: the upstream image generator failed or is unreachable.
+            return StatusCode(StatusCodes.Status502BadGateway, new { error = ex.Message });
+        }
     }
 
     private static NpcStatBlock? ToStatBlock(StatBlockRequest? request) =>

@@ -48,6 +48,7 @@ export interface Npc {
   currentHitPoints: number | null
   maxHitPoints: number | null
   statBlock: StatBlock | null
+  portrait: string | null
   createdAt: string
 }
 
@@ -64,6 +65,14 @@ export interface NpcInput {
   currentHitPoints: number | null
   maxHitPoints: number | null
   statBlock: StatBlock | null
+  portrait: string | null
+}
+
+export interface PortraitRequest {
+  race: string | null
+  role: string | null
+  name: string | null
+  isHostile: boolean
 }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
@@ -105,6 +114,17 @@ export function updateNpc(id: string, input: NpcInput): Promise<Npc> {
 
 export function deleteNpc(id: string): Promise<void> {
   return request<void>(`/api/npcs/${id}`, { method: 'DELETE' })
+}
+
+// Returns a base64-encoded PNG (no data-URL prefix).
+export async function generatePortrait(
+  input: PortraitRequest,
+): Promise<string> {
+  const { image } = await request<{ image: string }>('/api/npcs/portrait', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+  return image
 }
 
 export function listLocations(): Promise<Location[]> {
