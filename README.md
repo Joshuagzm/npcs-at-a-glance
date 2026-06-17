@@ -33,7 +33,7 @@ The goal is to take the improv load off the GM in the moment, and to keep the wo
 | Styling / UI | Tailwind CSS v4, shadcn/ui (radix base, Nova preset, Geist font) |
 | Linting | ESLint (flat config) + Prettier |
 | Backend | .NET 10 Web API, controllers + domain + repository layering |
-| Persistence | PostgreSQL (NPCs); locations currently in-memory |
+| Persistence | PostgreSQL (NPCs and locations) |
 | AI portraits | Local Stable Diffusion (Forge) txt2img API |
 
 ## Project structure
@@ -173,7 +173,7 @@ Naming conventions: `npcs.$npcId.tsx` for path params (`/npcs/:npcId`), `__root.
 
 - Sample requests live in `backend/NpcManagement.Api/NpcManagement.Api.http` — runnable directly from VS Code (REST Client extension) or Rider/Visual Studio.
 - An OpenAPI document is served at `http://localhost:5000/openapi/v1.json` in development.
-- NPCs persist to **PostgreSQL**. Locations are still **in-memory** and reset on API restart — back them up before restarting if you care about them.
+- NPCs and locations both persist to **PostgreSQL**. NPCs carry a `location_id`, and `npc.npc_locations` is a join table (foreign-keyed to both `npc.npcs` and `npc.locations`) kept in sync whenever an NPC is created or updated with a location.
 
 ## Adding a new API resource
 
