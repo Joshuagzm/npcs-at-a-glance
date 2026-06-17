@@ -10,7 +10,12 @@ function RootLayout() {
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b">
         <nav className="mx-auto flex max-w-5xl items-center gap-6 px-6 py-4">
-          <span className="font-semibold">NPC Management</span>
+          <Link
+            to="/"
+            className="font-semibold transition-colors hover:text-muted-foreground"
+          >
+            NPC Management
+          </Link>
           <Link
             to="/"
             className="text-sm text-muted-foreground hover:text-foreground [&.active]:text-foreground"
