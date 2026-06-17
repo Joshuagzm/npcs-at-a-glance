@@ -779,12 +779,12 @@ function NpcFormDialog({
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="npc-level">Level (1–100)</Label>
+                    <Label htmlFor="npc-level">Level (1–20)</Label>
                     <Input
                       id="npc-level"
                       type="number"
                       min={1}
-                      max={100}
+                      max={20}
                       value={level}
                       onChange={(e) => setLevel(Number(e.target.value))}
                       required
