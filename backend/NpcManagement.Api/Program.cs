@@ -14,7 +14,7 @@ var connectionString = builder.Configuration.GetConnectionString("Postgres")
 builder.Services.AddNpgsqlDataSource(connectionString);
 
 builder.Services.AddSingleton<INpcRepository, PostgresNpcRepository>();
-builder.Services.AddSingleton<ILocationRepository, InMemoryLocationRepository>();
+builder.Services.AddSingleton<ILocationRepository, PostgresLocationRepository>();
 
 // Stable Diffusion Forge portrait generation. The base URL points at the local
 // Forge install (launched with --api); generation can take up to ~2 min on a

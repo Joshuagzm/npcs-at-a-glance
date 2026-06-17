@@ -44,30 +44,80 @@ public class PostgresNpcRepository(NpgsqlDataSource dataSource) : INpcRepository
 
     public async Task<Npc> AddAsync(Npc npc, CancellationToken cancellationToken = default)
     {
-        await using var cmd = dataSource.CreateCommand(
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+        await using (var cmd = new NpgsqlCommand(
             $"INSERT INTO npc.npcs ({Columns}) " +
             "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, " +
-            "$15, $16, $17, $18, $19, $20, $21)");
-        AddParameters(cmd, npc);
-        await cmd.ExecuteNonQueryAsync(cancellationToken);
+            "$15, $16, $17, $18, $19, $20, $21)", connection, transaction))
+        {
+            AddParameters(cmd, npc);
+            await cmd.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        await SyncLocationLinkAsync(connection, transaction, npc, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return npc;
     }
 
     public async Task<bool> UpdateAsync(Npc npc, CancellationToken cancellationToken = default)
     {
-        await using var cmd = dataSource.CreateCommand(
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+        int rows;
+        await using (var cmd = new NpgsqlCommand(
             "UPDATE npc.npcs SET " +
             "name = $2, role = $3, location_id = $4, level = $5, is_hostile = $6, " +
             "notes = $7, likes = $8, dislikes = $9, goals = $10, " +
             "current_hit_points = $11, max_hit_points = $12, stat_block = $13, " +
             "portrait = $14, portrait_seed = $15, race = $16, gender = $17, " +
             "age = $18, skin_color = $19, appearance_details = $20, created_at = $21 " +
-            "WHERE id = $1");
-        AddParameters(cmd, npc);
-        var rows = await cmd.ExecuteNonQueryAsync(cancellationToken);
+            "WHERE id = $1", connection, transaction))
+        {
+            AddParameters(cmd, npc);
+            rows = await cmd.ExecuteNonQueryAsync(cancellationToken);
+        }
 
-        return rows > 0;
+        if (rows == 0)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return false;
+        }
+
+        await SyncLocationLinkAsync(connection, transaction, npc, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return true;
+    }
+
+    // Keep npc.npc_locations in step with the NPC's location: upsert the link when a
+    // location is set, drop it when the NPC has none.
+    private static async Task SyncLocationLinkAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        Npc npc,
+        CancellationToken cancellationToken)
+    {
+        if (npc.LocationId is { } locationId)
+        {
+            await using var cmd = new NpgsqlCommand(
+                "INSERT INTO npc.npc_locations (npc_id, location_id) VALUES ($1, $2) " +
+                "ON CONFLICT (npc_id) DO UPDATE SET location_id = EXCLUDED.location_id",
+                connection, transaction);
+            cmd.Parameters.AddWithValue(npc.Id);
+            cmd.Parameters.AddWithValue(locationId);
+            await cmd.ExecuteNonQueryAsync(cancellationToken);
+        }
+        else
+        {
+            await using var cmd = new NpgsqlCommand(
+                "DELETE FROM npc.npc_locations WHERE npc_id = $1", connection, transaction);
+            cmd.Parameters.AddWithValue(npc.Id);
+            await cmd.ExecuteNonQueryAsync(cancellationToken);
+        }
     }
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
