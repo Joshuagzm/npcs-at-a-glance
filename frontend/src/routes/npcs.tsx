@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Badge } from '@/components/ui/badge'
@@ -43,7 +43,6 @@ import {
   type StatBlock,
 } from '@/lib/api'
 import {
-  hasUnsavedChanges,
   lastSavedBackup,
   pickBackupFile,
   restoreBackup,
@@ -173,21 +172,6 @@ function NpcsPage() {
     },
   })
 
-  const unsaved =
-    npcsQuery.isSuccess &&
-    hasUnsavedChanges(npcsQuery.data, locationsQuery.data ?? [], backup)
-
-  useEffect(() => {
-    if (!unsaved) return
-    const warn = (event: BeforeUnloadEvent) => {
-      event.preventDefault()
-      // Required by older browsers for the prompt to appear.
-      event.returnValue = ''
-    }
-    window.addEventListener('beforeunload', warn)
-    return () => window.removeEventListener('beforeunload', warn)
-  }, [unsaved])
-
   const handleSubmit = (input: NpcInput) => {
     if (editing) {
       updateMutation.mutate({ id: editing.id, input })
@@ -218,7 +202,6 @@ function NpcsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {unsaved && <Badge variant="outline">Unsaved changes</Badge>}
           <Button
             variant="outline"
             disabled={!npcsQuery.isSuccess || saveMutation.isPending}
