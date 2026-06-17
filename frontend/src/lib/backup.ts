@@ -38,7 +38,7 @@ interface PickerWindow extends Window {
 
 const FILE_TYPES = [
   {
-    description: 'NPC backup (JSON)',
+    description: 'NPC & location backup (JSON)',
     accept: { 'application/json': ['.json'] },
   },
 ]
