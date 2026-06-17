@@ -42,12 +42,7 @@ import {
   type NpcInput,
   type StatBlock,
 } from '@/lib/api'
-import {
-  lastSavedBackup,
-  pickBackupFile,
-  restoreBackup,
-  saveBackupToFile,
-} from '@/lib/backup'
+import { BackupControls } from '@/components/backup-controls'
 import {
   fetchStatBlock,
   formatChallengeRating,
@@ -139,39 +134,6 @@ function NpcsPage() {
     onSuccess: invalidate,
   })
 
-  const [backup, setBackup] = useState(lastSavedBackup)
-
-  const saveMutation = useMutation({
-    mutationFn: () =>
-      saveBackupToFile(npcsQuery.data ?? [], locationsQuery.data ?? []),
-    onSuccess: (saved) => {
-      if (saved) setBackup(saved)
-    },
-  })
-
-  const restoreMutation = useMutation({
-    mutationFn: async () => {
-      const picked = await pickBackupFile()
-      if (!picked) return null
-      const when = new Date(picked.savedAt).toLocaleString()
-      if (
-        !confirm(
-          `Replace the current NPCs with the backup saved ${when} ` +
-            `(${picked.npcs.length} NPC${picked.npcs.length === 1 ? '' : 's'})?`,
-        )
-      ) {
-        return null
-      }
-      return restoreBackup(picked)
-    },
-    onSuccess: (restored) => {
-      if (restored) {
-        setBackup(restored)
-        invalidate()
-      }
-    },
-  })
-
   const handleSubmit = (input: NpcInput) => {
     if (editing) {
       updateMutation.mutate({ id: editing.id, input })
@@ -202,25 +164,7 @@ function NpcsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            disabled={!npcsQuery.isSuccess || saveMutation.isPending}
-            onClick={() => saveMutation.mutate()}
-          >
-            {saveMutation.isPending ? 'Saving…' : 'Save backup'}
-          </Button>
-          <Button
-            variant="outline"
-            disabled={restoreMutation.isPending}
-            title={
-              backup
-                ? `Last saved ${new Date(backup.savedAt).toLocaleString()}`
-                : 'No backup saved yet'
-            }
-            onClick={() => restoreMutation.mutate()}
-          >
-            {restoreMutation.isPending ? 'Loading…' : 'Load backup'}
-          </Button>
+          <BackupControls />
           <Button
             onClick={() => {
               setEditing(null)
@@ -231,18 +175,6 @@ function NpcsPage() {
           </Button>
         </div>
       </div>
-
-      {saveMutation.isError && (
-        <p className="text-destructive">
-          Failed to save backup: {saveMutation.error.message}
-        </p>
-      )}
-
-      {restoreMutation.isError && (
-        <p className="text-destructive">
-          Failed to load backup: {restoreMutation.error.message}
-        </p>
-      )}
 
       {npcsQuery.isPending && (
         <p className="text-muted-foreground">Loading NPCs…</p>
