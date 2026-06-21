@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Loader2 } from 'lucide-react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Badge } from '@/components/ui/badge'
@@ -534,16 +535,35 @@ function NpcFormDialog({
                   </div>
                 </div>
                 {portrait ? (
-                  <img
-                    src={`data:image/png;base64,${portrait}`}
-                    alt={`Portrait of ${name || 'this NPC'}`}
-                    className="mx-auto max-h-96 rounded-md border"
-                  />
+                  // Existing portrait stays visible during a regenerate, dimmed
+                  // with a spinner overlaid so it's clear work is in progress.
+                  <div className="relative mx-auto w-fit">
+                    <img
+                      src={`data:image/png;base64,${portrait}`}
+                      alt={`Portrait of ${name || 'this NPC'}`}
+                      className={`max-h-96 rounded-md border ${
+                        portraitMutation.isPending ? 'opacity-40' : ''
+                      }`}
+                    />
+                    {portraitMutation.isPending && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Loader2 className="size-8 animate-spin text-primary" />
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <div className="flex aspect-2/3 max-h-96 w-full items-center justify-center rounded-md border border-dashed p-4 text-center text-xs text-muted-foreground">
-                    {portraitMutation.isPending
-                      ? 'Generating portrait — this can take up to a couple of minutes…'
-                      : 'No portrait yet. Set the appearance below and generate one.'}
+                    {portraitMutation.isPending ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <Loader2 className="size-6 animate-spin text-primary" />
+                        <span>
+                          Generating portrait — this can take up to a couple of
+                          minutes…
+                        </span>
+                      </div>
+                    ) : (
+                      'No portrait yet. Set the appearance below and generate one.'
+                    )}
                   </div>
                 )}
                 {portraitMutation.isError && (
