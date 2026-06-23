@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { Loader2 } from 'lucide-react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Badge } from '@/components/ui/badge'
@@ -35,7 +34,6 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   createNpc,
   deleteNpc,
-  generatePortrait,
   listLocations,
   listNpcs,
   updateNpc,
@@ -44,11 +42,10 @@ import {
   type StatBlock,
 } from '@/lib/api'
 import { BackupControls } from '@/components/backup-controls'
-import {
-  fetchStatBlock,
-  formatChallengeRating,
-  searchMonsters,
-} from '@/lib/srd'
+import { HitPointsField } from '@/components/npc-form/hit-points-field'
+import { PortraitPanel } from '@/components/npc-form/portrait-panel'
+import { StatBlockPicker } from '@/components/npc-form/stat-block-picker'
+import { formatChallengeRating } from '@/lib/srd'
 import {
   generateName,
   RACE_LABELS,
@@ -63,19 +60,6 @@ export const Route = createFileRoute('/npcs')({
 // Radix Select items can't use an empty value, so a sentinel stands in for
 // "no location assigned".
 const NO_LOCATION = '__none__'
-
-// Appearance dropdown options. The sentinel stands in for "unspecified"
-// because Radix Select items can't use an empty value.
-const UNSPECIFIED = '__unspecified__'
-const GENDERS = ['Male', 'Female'] as const
-const AGES = [
-  'Child',
-  'Adolescent',
-  'Young adult',
-  'Adult',
-  'Middle-aged',
-  'Elderly',
-] as const
 
 // Likes/dislikes/goals are stored as a single newline-joined string, but
 // edited and displayed as a list of entries.
@@ -418,50 +402,18 @@ function NpcFormDialog({
     npc?.statBlock ?? null,
   )
 
-  const portraitMutation = useMutation({
-    mutationFn: () =>
-      generatePortrait({
-        race: RACE_LABELS[race],
-        role: role.trim() || null,
-        name: name.trim() || null,
-        isHostile,
-        gender: gender || null,
-        age: age || null,
-        skinColor: skinColor.trim() || null,
-        appearanceDetails: appearanceDetails.trim() || null,
-        seed: portraitSeed,
-      }),
-    onSuccess: (result) => {
-      setPortrait(result.image)
-      setPortraitSeed(result.seed)
-    },
-  })
-  const [monsterSearch, setMonsterSearch] = useState('')
-  const [submittedSearch, setSubmittedSearch] = useState('')
-
-  const monstersQuery = useQuery({
-    queryKey: ['srd-monsters', submittedSearch],
-    queryFn: () => searchMonsters(submittedSearch),
-    enabled: submittedSearch.length > 0,
-  })
-
   const locationsQuery = useQuery({
     queryKey: ['locations'],
     queryFn: listLocations,
   })
   const locations = locationsQuery.data ?? []
 
-  const statBlockMutation = useMutation({
-    mutationFn: fetchStatBlock,
-    onSuccess: (block) => {
-      setStatBlock(block)
-      // Seed the HP tracker from the monster unless already tracked.
-      setMaxHp((prev) => prev || String(block.hitPoints))
-      setCurrentHp((prev) => prev || String(block.hitPoints))
-      setMonsterSearch('')
-      setSubmittedSearch('')
-    },
-  })
+  const handleStatBlockSelect = (block: StatBlock) => {
+    setStatBlock(block)
+    // Seed the HP tracker from the monster unless already tracked.
+    setMaxHp((prev) => prev || String(block.hitPoints))
+    setCurrentHp((prev) => prev || String(block.hitPoints))
+  }
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault()
@@ -488,10 +440,6 @@ function NpcFormDialog({
     })
   }
 
-  // Older saved NPCs predate traits/actions on the stat block.
-  const statBlockTraits = statBlock?.traits ?? []
-  const statBlockActions = statBlock?.actions ?? []
-
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent className="max-h-[90vh] w-3/4 max-w-none overflow-y-auto sm:max-w-none">
@@ -504,143 +452,24 @@ function NpcFormDialog({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="flex gap-6">
             {/* Portrait panel — the appearance fields feed its prompt. */}
-            <div className="w-72 shrink-0 space-y-4">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Portrait</Label>
-                  <div className="flex gap-2">
-                    {portrait && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setPortrait(null)}
-                      >
-                        Remove
-                      </Button>
-                    )}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={portraitMutation.isPending}
-                      onClick={() => portraitMutation.mutate()}
-                    >
-                      {portraitMutation.isPending
-                        ? 'Generating…'
-                        : portrait
-                          ? 'Regenerate'
-                          : 'Generate portrait'}
-                    </Button>
-                  </div>
-                </div>
-                {portrait ? (
-                  // Existing portrait stays visible during a regenerate, dimmed
-                  // with a spinner overlaid so it's clear work is in progress.
-                  <div className="relative mx-auto w-fit">
-                    <img
-                      src={`data:image/png;base64,${portrait}`}
-                      alt={`Portrait of ${name || 'this NPC'}`}
-                      className={`max-h-96 rounded-md border ${
-                        portraitMutation.isPending ? 'opacity-40' : ''
-                      }`}
-                    />
-                    {portraitMutation.isPending && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <Loader2 className="size-8 animate-spin text-primary" />
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex aspect-2/3 max-h-96 w-full items-center justify-center rounded-md border border-dashed p-4 text-center text-xs text-muted-foreground">
-                    {portraitMutation.isPending ? (
-                      <div className="flex flex-col items-center gap-2">
-                        <Loader2 className="size-6 animate-spin text-primary" />
-                        <span>
-                          Generating portrait — this can take up to a couple of
-                          minutes…
-                        </span>
-                      </div>
-                    ) : (
-                      'No portrait yet. Set the appearance below and generate one.'
-                    )}
-                  </div>
-                )}
-                {portraitMutation.isError && (
-                  <p className="text-sm text-destructive">
-                    {portraitMutation.error.message}
-                  </p>
-                )}
-                {portraitSeed !== null && (
-                  <p className="text-center text-xs text-muted-foreground">
-                    Seed {portraitSeed} · reused on regenerate
-                  </p>
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label htmlFor="npc-gender">Gender</Label>
-                  <Select
-                    value={gender || UNSPECIFIED}
-                    onValueChange={(value) =>
-                      setGender(value === UNSPECIFIED ? '' : value)
-                    }
-                  >
-                    <SelectTrigger id="npc-gender" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={UNSPECIFIED}>Unspecified</SelectItem>
-                      {GENDERS.map((g) => (
-                        <SelectItem key={g} value={g}>
-                          {g}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="npc-age">Age</Label>
-                  <Select
-                    value={age || UNSPECIFIED}
-                    onValueChange={(value) =>
-                      setAge(value === UNSPECIFIED ? '' : value)
-                    }
-                  >
-                    <SelectTrigger id="npc-age" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={UNSPECIFIED}>Unspecified</SelectItem>
-                      {AGES.map((a) => (
-                        <SelectItem key={a} value={a}>
-                          {a}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="npc-skin">Skin color</Label>
-                <Input
-                  id="npc-skin"
-                  value={skinColor}
-                  onChange={(e) => setSkinColor(e.target.value)}
-                  placeholder="Olive, pale, dark, green, …"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="npc-appearance">Additional details</Label>
-                <Textarea
-                  id="npc-appearance"
-                  value={appearanceDetails}
-                  onChange={(e) => setAppearanceDetails(e.target.value)}
-                  rows={3}
-                  placeholder="Hair, clothing, scars, expression — anything to add to the portrait prompt."
-                />
-              </div>
-            </div>
+            <PortraitPanel
+              name={name}
+              role={role}
+              isHostile={isHostile}
+              race={race}
+              gender={gender}
+              onGenderChange={setGender}
+              age={age}
+              onAgeChange={setAge}
+              skinColor={skinColor}
+              onSkinColorChange={setSkinColor}
+              appearanceDetails={appearanceDetails}
+              onAppearanceDetailsChange={setAppearanceDetails}
+              portrait={portrait}
+              onPortraitChange={setPortrait}
+              portraitSeed={portraitSeed}
+              onPortraitSeedChange={setPortraitSeed}
+            />
             {/* Main portion */}
             <div className="grid flex-1 grid-cols-2 gap-6">
               <div className="space-y-4">
@@ -726,71 +555,12 @@ function NpcFormDialog({
                     />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Hit points</Label>
-                  <div className="flex items-end gap-3">
-                    <div className="space-y-1">
-                      <Label
-                        htmlFor="npc-current-hp"
-                        className="text-xs font-normal text-muted-foreground"
-                      >
-                        Current
-                      </Label>
-                      <Input
-                        id="npc-current-hp"
-                        type="number"
-                        min={0}
-                        max={maxHp === '' ? 1000 : Number(maxHp)}
-                        className="w-20 text-center"
-                        placeholder="—"
-                        aria-label="Current hit points"
-                        value={currentHp}
-                        onChange={(e) => setCurrentHp(e.target.value)}
-                        onBlur={() => {
-                          // Clip current HP down to max if it overshoots.
-                          if (
-                            currentHp !== '' &&
-                            maxHp !== '' &&
-                            Number(currentHp) > Number(maxHp)
-                          ) {
-                            setCurrentHp(maxHp)
-                          }
-                        }}
-                      />
-                    </div>
-                    <span className="pb-2 text-muted-foreground">/</span>
-                    <div className="space-y-1">
-                      <Label
-                        htmlFor="npc-max-hp"
-                        className="text-xs font-normal text-muted-foreground"
-                      >
-                        Max
-                      </Label>
-                      <Input
-                        id="npc-max-hp"
-                        type="number"
-                        min={1}
-                        max={1000}
-                        className="w-20 text-center"
-                        placeholder="—"
-                        aria-label="Maximum hit points"
-                        value={maxHp}
-                        onChange={(e) => setMaxHp(e.target.value)}
-                        onBlur={() => {
-                          // Only commit the clip on blur, so typing a larger
-                          // max doesn't momentarily drag current HP down.
-                          if (
-                            currentHp !== '' &&
-                            maxHp !== '' &&
-                            Number(currentHp) > Number(maxHp)
-                          ) {
-                            setCurrentHp(maxHp)
-                          }
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
+                <HitPointsField
+                  currentHp={currentHp}
+                  onCurrentHpChange={setCurrentHp}
+                  maxHp={maxHp}
+                  onMaxHpChange={setMaxHp}
+                />
                 <div className="grid grid-cols-2 gap-4">
                   <EditableList
                     id="npc-likes"
@@ -834,150 +604,11 @@ function NpcFormDialog({
                   <Label htmlFor="npc-hostile">Hostile toward players</Label>
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="npc-monster">Stat block (5e SRD)</Label>
-                {statBlock ? (
-                  <div className="space-y-1 rounded-md border p-3 text-sm">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">
-                        {statBlock.monsterName}
-                        <span className="text-muted-foreground">
-                          {' '}
-                          — {statBlock.size} {statBlock.type}, CR{' '}
-                          {formatChallengeRating(statBlock.challengeRating)}
-                        </span>
-                      </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setStatBlock(null)}
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                    <p className="text-muted-foreground">
-                      AC {statBlock.armorClass} · HP {statBlock.hitPoints} ·
-                      Speed {statBlock.speed}
-                    </p>
-                    <p className="text-muted-foreground">
-                      STR {statBlock.strength} · DEX {statBlock.dexterity} · CON{' '}
-                      {statBlock.constitution} · INT {statBlock.intelligence} ·
-                      WIS {statBlock.wisdom} · CHA {statBlock.charisma}
-                    </p>
-                    {statBlock.flavorText && (
-                      <p className="max-h-24 overflow-y-auto border-t pt-1 text-xs text-muted-foreground italic">
-                        {statBlock.flavorText}
-                      </p>
-                    )}
-                    {(statBlockTraits.length > 0 ||
-                      statBlockActions.length > 0) && (
-                      <div className="max-h-80 space-y-3 overflow-y-auto border-t pt-2">
-                        {statBlockTraits.length > 0 && (
-                          <div className="space-y-1">
-                            <p className="text-xs font-semibold tracking-wide uppercase">
-                              Traits
-                            </p>
-                            {statBlockTraits.map((trait) => (
-                              <p
-                                key={trait.name}
-                                className="text-xs text-muted-foreground"
-                              >
-                                <span className="font-medium text-foreground">
-                                  {trait.name}.
-                                </span>{' '}
-                                {trait.description}
-                              </p>
-                            ))}
-                          </div>
-                        )}
-                        {statBlockActions.length > 0 && (
-                          <div className="space-y-1">
-                            <p className="text-xs font-semibold tracking-wide uppercase">
-                              Actions
-                            </p>
-                            {statBlockActions.map((action) => (
-                              <p
-                                key={action.name}
-                                className="text-xs text-muted-foreground"
-                              >
-                                <span className="font-medium text-foreground">
-                                  {action.name}.
-                                </span>{' '}
-                                {action.description}
-                              </p>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        id="npc-monster"
-                        value={monsterSearch}
-                        onChange={(e) => setMonsterSearch(e.target.value)}
-                        placeholder="Search monsters — goblin, mage, …"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault()
-                            setSubmittedSearch(monsterSearch.trim())
-                          }
-                        }}
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setSubmittedSearch(monsterSearch.trim())}
-                      >
-                        Search
-                      </Button>
-                    </div>
-                    {monstersQuery.isFetching && (
-                      <p className="text-sm text-muted-foreground">
-                        Searching…
-                      </p>
-                    )}
-                    {monstersQuery.isError && (
-                      <p className="text-sm text-destructive">
-                        {monstersQuery.error.message}
-                      </p>
-                    )}
-                    {monstersQuery.isSuccess &&
-                      monstersQuery.data.length === 0 && (
-                        <p className="text-sm text-muted-foreground">
-                          No monsters matched.
-                        </p>
-                      )}
-                    {monstersQuery.isSuccess &&
-                      monstersQuery.data.length > 0 && (
-                        <div className="flex flex-wrap gap-2">
-                          {monstersQuery.data.slice(0, 8).map((monster) => (
-                            <Button
-                              key={monster.index}
-                              type="button"
-                              variant="secondary"
-                              size="sm"
-                              disabled={statBlockMutation.isPending}
-                              onClick={() =>
-                                statBlockMutation.mutate(monster.index)
-                              }
-                            >
-                              {monster.name}
-                            </Button>
-                          ))}
-                        </div>
-                      )}
-                    {statBlockMutation.isError && (
-                      <p className="text-sm text-destructive">
-                        {statBlockMutation.error.message}
-                      </p>
-                    )}
-                  </>
-                )}
-              </div>
+              <StatBlockPicker
+                statBlock={statBlock}
+                onSelect={handleStatBlockSelect}
+                onRemove={() => setStatBlock(null)}
+              />
             </div>
           </div>
           {error && <p className="text-sm text-destructive">{error.message}</p>}
