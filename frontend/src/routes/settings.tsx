@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { getForgeUrl, setForgeUrl } from '@/lib/settings'
@@ -9,12 +10,25 @@ export const Route = createFileRoute('/settings')({
 })
 
 function SettingsPage() {
-  // Seed from localStorage; persist on every change so it survives refreshes.
-  const [forgeUrl, setForgeUrlState] = useState(getForgeUrl)
+  // `saved` is what's persisted (and used by portrait generation); `draft` is
+  // the editable field. The draft is only committed to storage on Save.
+  const [saved, setSaved] = useState(getForgeUrl)
+  const [draft, setDraft] = useState(saved)
 
-  const handleChange = (value: string) => {
-    setForgeUrlState(value)
-    setForgeUrl(value)
+  const trimmedDraft = draft.trim()
+  const isDirty = trimmedDraft !== saved
+  const canClear = saved !== '' || draft !== ''
+
+  const handleSave = () => {
+    setForgeUrl(trimmedDraft)
+    setSaved(trimmedDraft)
+    setDraft(trimmedDraft)
+  }
+
+  const handleClear = () => {
+    setForgeUrl('')
+    setSaved('')
+    setDraft('')
   }
 
   return (
@@ -28,18 +42,31 @@ function SettingsPage() {
 
       <div className="space-y-2">
         <Label htmlFor="forge-url">Image generator URL</Label>
-        <Input
-          id="forge-url"
-          type="url"
-          placeholder="http://127.0.0.1:7860"
-          value={forgeUrl}
-          onChange={(e) => handleChange(e.target.value)}
-        />
+        <div className="flex items-center gap-2">
+          <Input
+            id="forge-url"
+            type="url"
+            className="flex-1"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+          />
+          <Button type="button" onClick={handleSave} disabled={!isDirty}>
+            Save
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleClear}
+            disabled={!canClear}
+          >
+            Clear
+          </Button>
+        </div>
         <p className="text-sm text-muted-foreground">
           The address of your Stable Diffusion Forge instance (launched with{' '}
           <code className="rounded bg-muted px-1 py-0.5 text-xs">--api</code>),
           used to generate NPC portraits. Leave blank to disable portrait
-          generation. Saved automatically in this browser.
+          generation. Click Save to apply your change.
         </p>
       </div>
     </section>
