@@ -97,6 +97,33 @@ export interface PortraitResult {
   seed: number
 }
 
+// ASP.NET Core returns ProblemDetails on errors — a validation failure
+// carries an `errors` map, other failures a `detail`/`title`. Pull the most
+// specific human-readable message out, falling back to plain text, so the UI
+// shows why a request failed instead of a bare status code.
+async function readErrorMessage(response: Response): Promise<string | null> {
+  try {
+    const text = await response.text()
+    if (!text) return null
+
+    const contentType = response.headers.get('content-type') ?? ''
+    if (!contentType.includes('json')) return text
+
+    const problem = JSON.parse(text) as {
+      detail?: string
+      title?: string
+      errors?: Record<string, string[]>
+    }
+    if (problem.errors) {
+      const messages = Object.values(problem.errors).flat()
+      if (messages.length > 0) return messages.join(' ')
+    }
+    return problem.detail ?? problem.title ?? null
+  } catch {
+    return null
+  }
+}
+
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     headers: { 'Content-Type': 'application/json' },
@@ -104,9 +131,9 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   })
 
   if (!response.ok) {
-    throw new Error(
-      `${init?.method ?? 'GET'} ${url} failed: ${response.status} ${response.statusText}`,
-    )
+    const detail = await readErrorMessage(response)
+    const prefix = `${init?.method ?? 'GET'} ${url} failed: ${response.status} ${response.statusText}`
+    throw new Error(detail ? `${prefix} — ${detail}` : prefix)
   }
 
   if (response.status === 204) {
