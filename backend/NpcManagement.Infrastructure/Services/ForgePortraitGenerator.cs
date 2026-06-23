@@ -5,9 +5,10 @@ using NpcManagement.Domain.Services;
 namespace NpcManagement.Infrastructure.Services;
 
 /// <summary>
-/// Generates NPC portraits by calling a local Stable Diffusion WebUI Forge
-/// install's txt2img API (<c>POST /sdapi/v1/txt2img</c>). The base address and
-/// timeout are configured on the injected <see cref="HttpClient"/>.
+/// Generates NPC portraits by calling a Stable Diffusion WebUI Forge install's
+/// txt2img API (<c>POST /sdapi/v1/txt2img</c>). The Forge base URL is supplied
+/// per request (from the user's Settings); the timeout is configured on the
+/// injected <see cref="HttpClient"/>.
 /// </summary>
 public class ForgePortraitGenerator(HttpClient httpClient, ForgeOptions options)
     : IPortraitGenerator
@@ -27,8 +28,18 @@ public class ForgePortraitGenerator(HttpClient httpClient, ForgeOptions options)
 
     public async Task<PortraitResult> GenerateAsync(
         PortraitRequest request,
+        string forgeBaseUrl,
         CancellationToken cancellationToken = default)
     {
+        if (!Uri.TryCreate(forgeBaseUrl, UriKind.Absolute, out var baseUri)
+            || (baseUri.Scheme != Uri.UriSchemeHttp
+                && baseUri.Scheme != Uri.UriSchemeHttps))
+        {
+            throw new PortraitGenerationException(
+                $"'{forgeBaseUrl}' is not a valid image generator URL.");
+        }
+        var endpoint = new Uri(baseUri, "/sdapi/v1/txt2img");
+
         var payload = new Dictionary<string, object?>
         {
             ["prompt"] = string.Format(PromptTemplate, BuildSubject(request)),
@@ -70,7 +81,7 @@ public class ForgePortraitGenerator(HttpClient httpClient, ForgeOptions options)
         try
         {
             response = await httpClient.PostAsJsonAsync(
-                "/sdapi/v1/txt2img", payload, cancellationToken);
+                endpoint, payload, cancellationToken);
         }
         catch (HttpRequestException ex)
         {

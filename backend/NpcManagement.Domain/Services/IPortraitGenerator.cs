@@ -25,7 +25,14 @@ public record PortraitResult(string Image, long Seed);
 /// </summary>
 public interface IPortraitGenerator
 {
-    Task<PortraitResult> GenerateAsync(PortraitRequest request, CancellationToken cancellationToken = default);
+    /// <param name="forgeBaseUrl">
+    /// Absolute base URL of the Stable Diffusion Forge instance to call
+    /// (configured by the user on the Settings page).
+    /// </param>
+    Task<PortraitResult> GenerateAsync(
+        PortraitRequest request,
+        string forgeBaseUrl,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>Thrown when portrait generation fails for a reason worth showing the caller.</summary>

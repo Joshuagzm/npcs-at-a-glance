@@ -1,3 +1,5 @@
+import { getForgeUrl } from './settings'
+
 export interface StatBlockEntry {
   name: string
   description: string
@@ -112,13 +114,14 @@ async function readErrorMessage(response: Response): Promise<string | null> {
     const problem = JSON.parse(text) as {
       detail?: string
       title?: string
+      error?: string
       errors?: Record<string, string[]>
     }
     if (problem.errors) {
       const messages = Object.values(problem.errors).flat()
       if (messages.length > 0) return messages.join(' ')
     }
-    return problem.detail ?? problem.title ?? null
+    return problem.detail ?? problem.error ?? problem.title ?? null
   } catch {
     return null
   }
@@ -166,12 +169,14 @@ export function deleteNpc(id: string): Promise<void> {
 }
 
 // Returns a base64-encoded PNG (no data-URL prefix) and the seed it used.
+// The user-configured Forge URL is attached here; the backend rejects the
+// request when it's blank.
 export function generatePortrait(
   input: PortraitRequest,
 ): Promise<PortraitResult> {
   return request<PortraitResult>('/api/npcs/portrait', {
     method: 'POST',
-    body: JSON.stringify(input),
+    body: JSON.stringify({ ...input, forgeUrl: getForgeUrl().trim() || null }),
   })
 }
 

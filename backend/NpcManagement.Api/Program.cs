@@ -16,10 +16,9 @@ builder.Services.AddNpgsqlDataSource(connectionString);
 builder.Services.AddSingleton<INpcRepository, PostgresNpcRepository>();
 builder.Services.AddSingleton<ILocationRepository, PostgresLocationRepository>();
 
-// Stable Diffusion Forge portrait generation. The base URL points at the local
-// Forge install (launched with --api); generation can take up to ~2 min on a
+// Stable Diffusion Forge portrait generation. The Forge base URL is supplied
+// per request from the user's Settings; generation can take up to ~2 min on a
 // cold first request, so the timeout is generous.
-var forgeBaseUrl = builder.Configuration["Forge:BaseUrl"] ?? "http://127.0.0.1:7860";
 builder.Services.AddSingleton(new ForgeOptions
 {
     Model = builder.Configuration["Forge:Model"],
@@ -27,7 +26,6 @@ builder.Services.AddSingleton(new ForgeOptions
 });
 builder.Services.AddHttpClient<IPortraitGenerator, ForgePortraitGenerator>(client =>
 {
-    client.BaseAddress = new Uri(forgeBaseUrl);
     client.Timeout = TimeSpan.FromSeconds(120);
 });
 

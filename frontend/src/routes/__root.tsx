@@ -17,12 +17,6 @@ function RootLayout() {
             NPC Management
           </Link>
           <Link
-            to="/"
-            className="text-sm text-muted-foreground hover:text-foreground [&.active]:text-foreground"
-          >
-            Home
-          </Link>
-          <Link
             to="/npcs"
             className="text-sm text-muted-foreground hover:text-foreground [&.active]:text-foreground"
           >
@@ -33,6 +27,12 @@ function RootLayout() {
             className="text-sm text-muted-foreground hover:text-foreground [&.active]:text-foreground"
           >
             Locations
+          </Link>
+          <Link
+            to="/settings"
+            className="text-sm text-muted-foreground hover:text-foreground [&.active]:text-foreground"
+          >
+            Settings
           </Link>
           <div className="ml-auto">
             <ModeToggle />
