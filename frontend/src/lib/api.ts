@@ -1,4 +1,5 @@
 import { getForgeUrl } from './settings'
+import { clearAuth, getToken, type AuthUser } from './auth'
 
 export interface StatBlockEntry {
   name: string
@@ -128,15 +129,27 @@ async function readErrorMessage(response: Response): Promise<string | null> {
 }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
+  const token = getToken()
   const response = await fetch(url, {
-    headers: { 'Content-Type': 'application/json' },
     ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...init?.headers,
+    },
   })
 
+  // A 401 means the session is gone or expired — drop it so the app gates the
+  // user back to the login screen.
+  if (response.status === 401) {
+    clearAuth()
+  }
+
   if (!response.ok) {
+    // Surface the server's human-readable message on its own — no method/URL or
+    // status code — so the UI can show it directly (e.g. validation messages).
     const detail = await readErrorMessage(response)
-    const prefix = `${init?.method ?? 'GET'} ${url} failed: ${response.status} ${response.statusText}`
-    throw new Error(detail ? `${prefix} — ${detail}` : prefix)
+    throw new Error(detail || response.statusText || 'Request failed.')
   }
 
   if (response.status === 204) {
@@ -203,4 +216,28 @@ export function updateLocation(
 
 export function deleteLocation(id: string): Promise<void> {
   return request<void>(`/api/locations/${id}`, { method: 'DELETE' })
+}
+
+export interface AuthResponse {
+  token: string
+  expiresAt: string
+  user: AuthUser
+}
+
+export function login(email: string, password: string): Promise<AuthResponse> {
+  return request<AuthResponse>('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  })
+}
+
+export function register(
+  email: string,
+  userName: string,
+  password: string,
+): Promise<AuthResponse> {
+  return request<AuthResponse>('/api/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({ email, userName, password }),
+  })
 }
