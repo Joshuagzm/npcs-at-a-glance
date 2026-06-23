@@ -3,6 +3,8 @@ namespace NpcManagement.Domain.Entities;
 public class Npc
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    // The Identity user that owns this NPC. Set from the authenticated request.
+    public Guid UserId { get; set; }
     public required string Name { get; set; }
     public string? Role { get; set; }
     public Guid? LocationId { get; set; }

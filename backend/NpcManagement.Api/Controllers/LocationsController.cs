@@ -9,7 +9,7 @@ namespace NpcManagement.Api.Controllers;
 [ApiController]
 [Route("api/locations")]
 [Authorize]
-public class LocationsController : ControllerBase
+public class LocationsController : ApiControllerBase
 {
     private readonly ILocationRepository _locationRepository;
 
@@ -21,14 +21,14 @@ public class LocationsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<Location>>> GetAll(CancellationToken cancellationToken)
     {
-        var locations = await _locationRepository.GetAllAsync(cancellationToken);
+        var locations = await _locationRepository.GetAllAsync(CurrentUserId, cancellationToken);
         return Ok(locations);
     }
 
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<Location>> GetById(Guid id, CancellationToken cancellationToken)
     {
-        var location = await _locationRepository.GetByIdAsync(id, cancellationToken);
+        var location = await _locationRepository.GetByIdAsync(id, CurrentUserId, cancellationToken);
         return location is null ? NotFound() : Ok(location);
     }
 
@@ -37,6 +37,7 @@ public class LocationsController : ControllerBase
     {
         var location = new Location
         {
+            UserId = CurrentUserId,
             Name = request.Name,
             Notes = request.Notes,
         };
@@ -48,7 +49,7 @@ public class LocationsController : ControllerBase
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<Location>> Update(Guid id, UpdateLocationRequest request, CancellationToken cancellationToken)
     {
-        var existing = await _locationRepository.GetByIdAsync(id, cancellationToken);
+        var existing = await _locationRepository.GetByIdAsync(id, CurrentUserId, cancellationToken);
         if (existing is null)
         {
             return NotFound();
@@ -64,7 +65,7 @@ public class LocationsController : ControllerBase
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
-        var deleted = await _locationRepository.DeleteAsync(id, cancellationToken);
+        var deleted = await _locationRepository.DeleteAsync(id, CurrentUserId, cancellationToken);
         return deleted ? NoContent() : NotFound();
     }
 }

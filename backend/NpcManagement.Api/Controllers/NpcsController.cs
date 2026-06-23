@@ -10,7 +10,7 @@ namespace NpcManagement.Api.Controllers;
 [ApiController]
 [Route("api/npcs")]
 [Authorize]
-public class NpcsController : ControllerBase
+public class NpcsController : ApiControllerBase
 {
     private readonly INpcRepository _npcRepository;
     private readonly IPortraitGenerator _portraitGenerator;
@@ -26,14 +26,14 @@ public class NpcsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<Npc>>> GetAll(CancellationToken cancellationToken)
     {
-        var npcs = await _npcRepository.GetAllAsync(cancellationToken);
+        var npcs = await _npcRepository.GetAllAsync(CurrentUserId, cancellationToken);
         return Ok(npcs);
     }
 
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<Npc>> GetById(Guid id, CancellationToken cancellationToken)
     {
-        var npc = await _npcRepository.GetByIdAsync(id, cancellationToken);
+        var npc = await _npcRepository.GetByIdAsync(id, CurrentUserId, cancellationToken);
         return npc is null ? NotFound() : Ok(npc);
     }
 
@@ -42,6 +42,7 @@ public class NpcsController : ControllerBase
     {
         var npc = new Npc
         {
+            UserId = CurrentUserId,
             Name = request.Name,
             Role = request.Role,
             LocationId = request.LocationId,
@@ -70,7 +71,7 @@ public class NpcsController : ControllerBase
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<Npc>> Update(Guid id, UpdateNpcRequest request, CancellationToken cancellationToken)
     {
-        var existing = await _npcRepository.GetByIdAsync(id, cancellationToken);
+        var existing = await _npcRepository.GetByIdAsync(id, CurrentUserId, cancellationToken);
         if (existing is null)
         {
             return NotFound();
@@ -169,7 +170,7 @@ public class NpcsController : ControllerBase
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
-        var deleted = await _npcRepository.DeleteAsync(id, cancellationToken);
+        var deleted = await _npcRepository.DeleteAsync(id, CurrentUserId, cancellationToken);
         return deleted ? NoContent() : NotFound();
     }
 }

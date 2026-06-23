@@ -32,6 +32,7 @@ const STORAGE_KEY = 'npc-management:backup'
 function makeNpc(overrides: Partial<Npc> = {}): Npc {
   return {
     id: crypto.randomUUID(),
+    userId: crypto.randomUUID(),
     name: 'Greta Ironhand',
     role: 'Blacksmith',
     locationId: null,
@@ -88,6 +89,7 @@ function makeNpc(overrides: Partial<Npc> = {}): Npc {
 function makeLocation(overrides: Partial<Location> = {}): Location {
   return {
     id: crypto.randomUUID(),
+    userId: crypto.randomUUID(),
     name: 'Ironforge Quarter',
     notes: null,
     createdAt: '2026-06-11T00:00:00Z',

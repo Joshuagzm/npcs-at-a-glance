@@ -8,15 +8,18 @@ public class InMemoryLocationRepository : ILocationRepository
 {
     private readonly ConcurrentDictionary<Guid, Location> _locations = new();
 
-    public Task<IReadOnlyList<Location>> GetAllAsync(CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<Location>> GetAllAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        IReadOnlyList<Location> locations = _locations.Values.OrderBy(l => l.CreatedAt).ToList();
+        IReadOnlyList<Location> locations = _locations.Values
+            .Where(l => l.UserId == userId)
+            .OrderBy(l => l.CreatedAt)
+            .ToList();
         return Task.FromResult(locations);
     }
 
-    public Task<Location?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    public Task<Location?> GetByIdAsync(Guid id, Guid userId, CancellationToken cancellationToken = default)
     {
-        _locations.TryGetValue(id, out var location);
+        var location = _locations.TryGetValue(id, out var found) && found.UserId == userId ? found : null;
         return Task.FromResult(location);
     }
 
@@ -28,7 +31,7 @@ public class InMemoryLocationRepository : ILocationRepository
 
     public Task<bool> UpdateAsync(Location location, CancellationToken cancellationToken = default)
     {
-        if (!_locations.ContainsKey(location.Id))
+        if (!_locations.TryGetValue(location.Id, out var existing) || existing.UserId != location.UserId)
         {
             return Task.FromResult(false);
         }
@@ -37,8 +40,13 @@ public class InMemoryLocationRepository : ILocationRepository
         return Task.FromResult(true);
     }
 
-    public Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    public Task<bool> DeleteAsync(Guid id, Guid userId, CancellationToken cancellationToken = default)
     {
+        if (!_locations.TryGetValue(id, out var existing) || existing.UserId != userId)
+        {
+            return Task.FromResult(false);
+        }
+
         return Task.FromResult(_locations.TryRemove(id, out _));
     }
 }
