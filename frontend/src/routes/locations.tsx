@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { formOptions } from '@tanstack/react-form'
+import { z } from 'zod'
 import { X } from 'lucide-react'
 import { BackupControls } from '@/components/backup-controls'
 import { Badge } from '@/components/ui/badge'
@@ -13,7 +15,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Table,
@@ -23,7 +24,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Textarea } from '@/components/ui/textarea'
 import {
   createLocation,
   deleteLocation,
@@ -34,11 +34,23 @@ import {
   type LocationInput,
   type Npc,
 } from '@/lib/api'
+import { useAppForm } from '@/components/form/app-form'
 import { formatChallengeRating } from '@/lib/srd'
 import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/locations')({
   component: LocationsPage,
+})
+
+const locationFormSchema = z.object({
+  name: z.string().refine((v) => v.trim().length > 0, {
+    message: 'Name is required',
+  }),
+  notes: z.string(),
+})
+
+const locationFormOptions = formOptions({
+  defaultValues: { name: '', notes: '' },
 })
 
 function LocationsPage() {
@@ -210,18 +222,18 @@ function LocationFormDialog({
   pending,
   error,
 }: LocationFormDialogProps) {
-  const [name, setName] = useState(location?.name ?? '')
-  const [notes, setNotes] = useState(location?.notes ?? '')
   const [selectedNpcId, setSelectedNpcId] = useState<string | null>(null)
   // Derive from the live list so the panel closes if the NPC disappears.
   const selectedNpc =
     associatedNpcs.find((npc) => npc.id === selectedNpcId) ?? null
 
-  const handleSubmit = (event: React.FormEvent) => {
-    event.preventDefault()
-    if (!name.trim()) return
-    onSubmit({ name: name.trim(), notes: notes.trim() || null })
-  }
+  const form = useAppForm({
+    ...locationFormOptions,
+    defaultValues: { name: location?.name ?? '', notes: location?.notes ?? '' },
+    validators: { onMount: locationFormSchema, onChange: locationFormSchema },
+    onSubmit: ({ value }) =>
+      onSubmit({ name: value.name.trim(), notes: value.notes.trim() || null }),
+  })
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
@@ -240,30 +252,25 @@ function LocationFormDialog({
         <div className="flex gap-4">
           <form
             id="location-form"
-            onSubmit={handleSubmit}
+            onSubmit={(e) => {
+              e.preventDefault()
+              form.handleSubmit()
+            }}
             className={cn('space-y-4', selectedNpc ? 'w-1/2' : 'w-full')}
           >
-            <div className="space-y-2">
-              <Label htmlFor="location-name">Name</Label>
-              <Input
-                id="location-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                autoFocus
-                required
-              />
-            </div>
+            <form.AppField name="name">
+              {(field) => <field.TextField label="Name" required autoFocus />}
+            </form.AppField>
 
-            <div className="space-y-2">
-              <Label htmlFor="location-notes">Location notes</Label>
-              <Textarea
-                id="location-notes"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                rows={3}
-                placeholder="A bustling port city, ruled by masked lords…"
-              />
-            </div>
+            <form.AppField name="notes">
+              {(field) => (
+                <field.TextareaField
+                  label="Location notes"
+                  rows={3}
+                  placeholder="A bustling port city, ruled by masked lords…"
+                />
+              )}
+            </form.AppField>
 
             {location && (
               <div className="space-y-2">
@@ -319,17 +326,14 @@ function LocationFormDialog({
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button
-            type="submit"
-            form="location-form"
-            disabled={pending || !name.trim()}
-          >
-            {pending
-              ? 'Saving…'
-              : location
-                ? 'Save changes'
-                : 'Create location'}
-          </Button>
+          <form.AppForm>
+            <form.SubmitButton
+              label={location ? 'Save changes' : 'Create location'}
+              pendingLabel="Saving…"
+              pending={pending}
+              formId="location-form"
+            />
+          </form.AppForm>
         </DialogFooter>
       </DialogContent>
     </Dialog>

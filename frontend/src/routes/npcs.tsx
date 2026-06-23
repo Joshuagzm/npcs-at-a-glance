@@ -3,8 +3,6 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
-import { EditableList } from '@/components/editable-list'
 import {
   Dialog,
   DialogContent,
@@ -13,7 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -30,7 +27,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Textarea } from '@/components/ui/textarea'
 import {
   createNpc,
   deleteNpc,
@@ -39,40 +35,26 @@ import {
   updateNpc,
   type Npc,
   type NpcInput,
-  type StatBlock,
 } from '@/lib/api'
 import { BackupControls } from '@/components/backup-controls'
+import { useAppForm } from '@/components/form/app-form'
 import { HitPointsField } from '@/components/npc-form/hit-points-field'
 import { PortraitPanel } from '@/components/npc-form/portrait-panel'
 import { StatBlockPicker } from '@/components/npc-form/stat-block-picker'
-import { formatChallengeRating } from '@/lib/srd'
 import {
-  generateName,
-  RACE_LABELS,
-  RACES,
-  type Race,
-} from '@/lib/nameGenerator'
+  npcFormOptions,
+  npcFormSchema,
+  npcToFormValues,
+  RACE_OPTIONS,
+  splitList,
+  toNpcInput,
+} from '@/components/npc-form/npc-form'
+import { formatChallengeRating } from '@/lib/srd'
+import { generateName } from '@/lib/nameGenerator'
 
 export const Route = createFileRoute('/npcs')({
   component: NpcsPage,
 })
-
-// Radix Select items can't use an empty value, so a sentinel stands in for
-// "no location assigned".
-const NO_LOCATION = '__none__'
-
-// Likes/dislikes/goals are stored as a single newline-joined string, but
-// edited and displayed as a list of entries.
-function splitList(value: string | null | undefined): string[] {
-  return (value ?? '')
-    .split('\n')
-    .map((entry) => entry.trim())
-    .filter(Boolean)
-}
-
-function joinList(items: string[]): string | null {
-  return items.length > 0 ? items.join('\n') : null
-}
 
 function NpcsPage() {
   const queryClient = useQueryClient()
@@ -371,74 +353,21 @@ function NpcFormDialog({
   pending,
   error,
 }: NpcFormDialogProps) {
-  const [name, setName] = useState(npc?.name ?? '')
-  const [role, setRole] = useState(npc?.role ?? '')
-  const [locationId, setLocationId] = useState(npc?.locationId ?? '')
-  const [level, setLevel] = useState(npc?.level ?? 1)
-  const [isHostile, setIsHostile] = useState(npc?.isHostile ?? false)
-  const [notes, setNotes] = useState(npc?.notes ?? '')
-  const [likes, setLikes] = useState<string[]>(() => splitList(npc?.likes))
-  const [dislikes, setDislikes] = useState<string[]>(() =>
-    splitList(npc?.dislikes),
-  )
-  const [goals, setGoals] = useState<string[]>(() => splitList(npc?.goals))
-  const [currentHp, setCurrentHp] = useState(
-    npc?.currentHitPoints?.toString() ?? '',
-  )
-  const [maxHp, setMaxHp] = useState(npc?.maxHitPoints?.toString() ?? '')
-  const [race, setRace] = useState<Race>((npc?.race as Race) ?? 'human')
-  const [gender, setGender] = useState(npc?.gender ?? '')
-  const [age, setAge] = useState(npc?.age ?? '')
-  const [skinColor, setSkinColor] = useState(npc?.skinColor ?? '')
-  const [appearanceDetails, setAppearanceDetails] = useState(
-    npc?.appearanceDetails ?? '',
-  )
-  const [portrait, setPortrait] = useState<string | null>(npc?.portrait ?? null)
-  // Locked once a portrait is generated, so regenerations stay consistent.
-  const [portraitSeed, setPortraitSeed] = useState<number | null>(
-    npc?.portraitSeed ?? null,
-  )
-  const [statBlock, setStatBlock] = useState<StatBlock | null>(
-    npc?.statBlock ?? null,
-  )
-
   const locationsQuery = useQuery({
     queryKey: ['locations'],
     queryFn: listLocations,
   })
-  const locations = locationsQuery.data ?? []
+  const locationOptions = (locationsQuery.data ?? []).map((loc) => ({
+    value: loc.id,
+    label: loc.name,
+  }))
 
-  const handleStatBlockSelect = (block: StatBlock) => {
-    setStatBlock(block)
-    // Seed the HP tracker from the monster unless already tracked.
-    setMaxHp((prev) => prev || String(block.hitPoints))
-    setCurrentHp((prev) => prev || String(block.hitPoints))
-  }
-
-  const handleSubmit = (event: React.FormEvent) => {
-    event.preventDefault()
-    onSubmit({
-      name: name.trim(),
-      role: role.trim() || null,
-      locationId: locationId || null,
-      level,
-      isHostile,
-      notes: notes.trim() || null,
-      likes: joinList(likes),
-      dislikes: joinList(dislikes),
-      goals: joinList(goals),
-      currentHitPoints: currentHp === '' ? null : Number(currentHp),
-      maxHitPoints: maxHp === '' ? null : Number(maxHp),
-      statBlock,
-      portrait,
-      portraitSeed,
-      race,
-      gender: gender || null,
-      age: age || null,
-      skinColor: skinColor.trim() || null,
-      appearanceDetails: appearanceDetails.trim() || null,
-    })
-  }
+  const form = useAppForm({
+    ...npcFormOptions,
+    defaultValues: npcToFormValues(npc),
+    validators: { onMount: npcFormSchema, onChange: npcFormSchema },
+    onSubmit: ({ value }) => onSubmit(toNpcInput(value)),
+  })
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
@@ -449,166 +378,110 @@ function NpcFormDialog({
             {npc ? 'Update the details below.' : 'Describe the new character.'}
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            form.handleSubmit()
+          }}
+          className="space-y-4"
+        >
           <div className="flex gap-6">
             {/* Portrait panel — the appearance fields feed its prompt. */}
-            <PortraitPanel
-              name={name}
-              role={role}
-              isHostile={isHostile}
-              race={race}
-              gender={gender}
-              onGenderChange={setGender}
-              age={age}
-              onAgeChange={setAge}
-              skinColor={skinColor}
-              onSkinColorChange={setSkinColor}
-              appearanceDetails={appearanceDetails}
-              onAppearanceDetailsChange={setAppearanceDetails}
-              portrait={portrait}
-              onPortraitChange={setPortrait}
-              portraitSeed={portraitSeed}
-              onPortraitSeedChange={setPortraitSeed}
-            />
+            <PortraitPanel form={form} />
             {/* Main portion */}
             <div className="grid flex-1 grid-cols-2 gap-6">
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="npc-name">Name</Label>
-                    <Input
-                      id="npc-name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="npc-role">Role</Label>
-                    <Input
-                      id="npc-role"
-                      value={role}
-                      onChange={(e) => setRole(e.target.value)}
-                      placeholder="Merchant, Guard, …"
-                    />
-                  </div>
+                  <form.AppField name="name">
+                    {(field) => <field.TextField label="Name" required />}
+                  </form.AppField>
+                  <form.AppField name="role">
+                    {(field) => (
+                      <field.TextField
+                        label="Role"
+                        placeholder="Merchant, Guard, …"
+                      />
+                    )}
+                  </form.AppField>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Select
-                    value={race}
-                    onValueChange={(value) => setRace(value as Race)}
-                  >
-                    <SelectTrigger
-                      className="w-44"
-                      aria-label="Race for random name"
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {RACES.map((r) => (
-                        <SelectItem key={r} value={r}>
-                          {RACE_LABELS[r]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setName(generateName(race))}
-                  >
-                    Random name
-                  </Button>
+                  <form.AppField name="race">
+                    {(field) => (
+                      <field.SelectField
+                        options={RACE_OPTIONS}
+                        className="w-44"
+                        ariaLabel="Race for random name"
+                      />
+                    )}
+                  </form.AppField>
+                  <form.Subscribe selector={(state) => state.values.race}>
+                    {(race) => (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() =>
+                          form.setFieldValue('name', generateName(race))
+                        }
+                      >
+                        Random name
+                      </Button>
+                    )}
+                  </form.Subscribe>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="npc-location">Location</Label>
-                    <Select
-                      value={locationId || NO_LOCATION}
-                      onValueChange={(value) =>
-                        setLocationId(value === NO_LOCATION ? '' : value)
-                      }
-                    >
-                      <SelectTrigger id="npc-location" className="w-full">
-                        <SelectValue placeholder="No location" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={NO_LOCATION}>No location</SelectItem>
-                        {locations.map((loc) => (
-                          <SelectItem key={loc.id} value={loc.id}>
-                            {loc.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="npc-level">Level (1–20)</Label>
-                    <Input
-                      id="npc-level"
-                      type="number"
-                      min={1}
-                      max={20}
-                      value={level}
-                      onChange={(e) => setLevel(Number(e.target.value))}
-                      required
+                  <form.AppField name="locationId">
+                    {(field) => (
+                      <field.SelectField
+                        label="Location"
+                        options={locationOptions}
+                        placeholder="No location"
+                        className="w-full"
+                      />
+                    )}
+                  </form.AppField>
+                  <form.AppField name="level">
+                    {(field) => (
+                      <field.NumberField label="Level (1–20)" min={1} max={20} />
+                    )}
+                  </form.AppField>
+                </div>
+                <HitPointsField form={form} />
+                <div className="grid grid-cols-2 gap-4">
+                  <form.AppField name="likes">
+                    {(field) => (
+                      <field.EditableListField
+                        label="Likes"
+                        placeholder="Fine ale, gossip, …"
+                      />
+                    )}
+                  </form.AppField>
+                  <form.AppField name="dislikes">
+                    {(field) => (
+                      <field.EditableListField
+                        label="Dislikes"
+                        placeholder="Nobles, loud noises, …"
+                      />
+                    )}
+                  </form.AppField>
+                </div>
+                <form.AppField name="goals">
+                  {(field) => (
+                    <field.EditableListField
+                      label="Goals"
+                      placeholder="What does this character want?"
                     />
-                  </div>
-                </div>
-                <HitPointsField
-                  currentHp={currentHp}
-                  onCurrentHpChange={setCurrentHp}
-                  maxHp={maxHp}
-                  onMaxHpChange={setMaxHp}
-                />
-                <div className="grid grid-cols-2 gap-4">
-                  <EditableList
-                    id="npc-likes"
-                    label="Likes"
-                    items={likes}
-                    onChange={setLikes}
-                    placeholder="Fine ale, gossip, …"
-                  />
-                  <EditableList
-                    id="npc-dislikes"
-                    label="Dislikes"
-                    items={dislikes}
-                    onChange={setDislikes}
-                    placeholder="Nobles, loud noises, …"
-                  />
-                </div>
-                <EditableList
-                  id="npc-goals"
-                  label="Goals"
-                  items={goals}
-                  onChange={setGoals}
-                  placeholder="What does this character want?"
-                />
-                <div className="space-y-2">
-                  <Label htmlFor="npc-notes">Notes</Label>
-                  <Textarea
-                    id="npc-notes"
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    rows={3}
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="npc-hostile"
-                    checked={isHostile}
-                    onCheckedChange={(checked) =>
-                      setIsHostile(checked === true)
-                    }
-                  />
-                  <Label htmlFor="npc-hostile">Hostile toward players</Label>
-                </div>
+                  )}
+                </form.AppField>
+                <form.AppField name="notes">
+                  {(field) => <field.TextareaField label="Notes" rows={3} />}
+                </form.AppField>
+                <form.AppField name="isHostile">
+                  {(field) => (
+                    <field.CheckboxField label="Hostile toward players" />
+                  )}
+                </form.AppField>
               </div>
-              <StatBlockPicker
-                statBlock={statBlock}
-                onSelect={handleStatBlockSelect}
-                onRemove={() => setStatBlock(null)}
-              />
+              <StatBlockPicker form={form} />
             </div>
           </div>
           {error && <p className="text-sm text-destructive">{error.message}</p>}
@@ -616,9 +489,13 @@ function NpcFormDialog({
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={pending}>
-              {pending ? 'Saving…' : npc ? 'Save changes' : 'Create NPC'}
-            </Button>
+            <form.AppForm>
+              <form.SubmitButton
+                label={npc ? 'Save changes' : 'Create NPC'}
+                pendingLabel="Saving…"
+                pending={pending}
+              />
+            </form.AppForm>
           </DialogFooter>
         </form>
       </DialogContent>
