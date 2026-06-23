@@ -33,7 +33,8 @@ The goal is to take the improv load off the GM in the moment, and to keep the wo
 | Styling / UI | Tailwind CSS v4, shadcn/ui (radix base, Nova preset, Geist font) |
 | Linting | ESLint (flat config) + Prettier |
 | Backend | .NET 10 Web API, controllers + domain + repository layering |
-| Persistence | PostgreSQL (NPCs and locations) |
+| Persistence | PostgreSQL (NPCs and locations via raw Npgsql; users via EF Core) |
+| Auth | ASP.NET Identity + JWT bearer (EF Core, `users` schema) |
 | AI portraits | Local Stable Diffusion (Forge) txt2img API |
 
 ## Project structure
@@ -171,9 +172,34 @@ Naming conventions: `npcs.$npcId.tsx` for path params (`/npcs/:npcId`), `__root.
 | PUT | `/api/locations/{id}` | Full update (name + notes) |
 | DELETE | `/api/locations/{id}` | Delete |
 
+| Method | Route | Auth | Description |
+| --- | --- | --- | --- |
+| POST | `/api/auth/register` | — | Register a user (email, userName, password); returns a JWT + user |
+| POST | `/api/auth/login` | — | Log in (email + password); returns a JWT + user, or 401 |
+| GET | `/api/users` | authenticated | List all users (with roles) |
+| GET | `/api/users/{id}` | authenticated | Get one user |
+| PUT | `/api/users/{id}` | `Admin` | Update email/userName and (optionally) the user's roles |
+| DELETE | `/api/users/{id}` | `Admin` | Delete a user |
+
 - Sample requests live in `backend/NpcManagement.Api/NpcManagement.Api.http` — runnable directly from VS Code (REST Client extension) or Rider/Visual Studio.
 - An OpenAPI document is served at `http://localhost:5000/openapi/v1.json` in development.
 - NPCs and locations both persist to **PostgreSQL**. NPCs carry a `location_id`, and `npc.npc_locations` is a join table (foreign-keyed to both `npc.npcs` and `npc.locations`) kept in sync whenever an NPC is created or updated with a location.
+
+## Users & authentication
+
+User management uses **ASP.NET Identity** backed by **EF Core** in a dedicated `users` schema (tables: `users`, `roles`, `user_roles`, `user_claims`, `user_logins`, `user_tokens`, `role_claims`). This is the one part of the backend that uses EF Core and EF migrations — the `npc` schema is still managed by the hand-written SQL in `backend/db`.
+
+- Authentication is **JWT bearer**. `POST /api/auth/register` and `/api/auth/login` return a signed token; send it as `Authorization: Bearer <token>` to reach protected routes. `[Authorize]` guards `/api/users`, and the `Admin` role is required to update or delete users.
+- The JWT signing key, issuer, audience and lifetime live in the `Jwt` section of `appsettings.json`. **Change `Jwt:Key` for any real deployment** (use user-secrets or environment variables, not the committed dev value).
+- The Identity migration is applied automatically on startup (`AppDbContext.Database.Migrate()`), which also seeds the `Admin` role. To create migrations manually:
+
+  ```sh
+  cd backend
+  dotnet ef migrations add <Name> --project NpcManagement.Infrastructure --startup-project NpcManagement.Api
+  dotnet ef database update --project NpcManagement.Infrastructure --startup-project NpcManagement.Api
+  ```
+
+- To bootstrap an admin on a fresh database, set the `Seed:AdminEmail` / `Seed:AdminUserName` / `Seed:AdminPassword` config keys; on startup the user is created (if absent) and added to the `Admin` role. `appsettings.Development.json` ships a dev admin (`admin@example.com` / `Admin123!`) — remove or override it outside development.
 
 ## Adding a new API resource
 
