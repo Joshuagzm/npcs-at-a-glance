@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Location, Npc } from './api'
 import {
-  hasUnsavedChanges,
   lastSavedBackup,
   pickBackupFile,
   restoreBackup,
@@ -332,36 +331,6 @@ describe('restoreBackup', () => {
     expect(createNpc).toHaveBeenCalledWith(
       expect.objectContaining({ name: 'Linked', locationId: 'new-loc' }),
     )
-  })
-})
-
-describe('hasUnsavedChanges', () => {
-  it('is clean when there is no backup and no data', () => {
-    expect(hasUnsavedChanges([], [], null)).toBe(false)
-  })
-
-  it('is dirty when there is data but no backup', () => {
-    expect(hasUnsavedChanges([makeNpc()], [], null)).toBe(true)
-  })
-
-  it('ignores ids, creation times, and ordering', () => {
-    const a = makeNpc({ name: 'Alpha' })
-    const b = makeNpc({ name: 'Beta' })
-    const backup = makeBackup([a, b])
-    const reloaded = [
-      makeNpc({ ...toInput(b), id: crypto.randomUUID(), createdAt: 'later' }),
-      makeNpc({ ...toInput(a), id: crypto.randomUUID(), createdAt: 'later' }),
-    ]
-
-    expect(hasUnsavedChanges(reloaded, [], backup)).toBe(false)
-  })
-
-  it('is dirty when content changed since the backup', () => {
-    const npc = makeNpc()
-    const backup = makeBackup([npc])
-    const edited = [makeNpc({ ...toInput(npc), id: npc.id, level: 99 })]
-
-    expect(hasUnsavedChanges(edited, [], backup)).toBe(true)
   })
 })
 

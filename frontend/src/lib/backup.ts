@@ -13,7 +13,7 @@ import {
 // Backups are JSON files the user saves to / loads from disk via the
 // File System Access API (with a download / file-input fallback for
 // browsers without it). localStorage keeps a copy of the last saved
-// snapshot purely so unsaved-change detection survives page reloads.
+// snapshot so the "Last saved …" hint survives page reloads.
 const STORAGE_KEY = 'npc-management:backup'
 
 export interface NpcBackup {
@@ -88,30 +88,6 @@ export function toInput(npc: Npc): NpcInput {
   }
 }
 
-// Compare on stable content only: ids and createdAt regenerate when a
-// backup is restored, so the npc/location link is compared by location
-// name rather than by the id that changes on restore.
-function fingerprint(npcs: Npc[], locations: Location[]): string {
-  const nameById = new Map(locations.map((loc) => [loc.id, loc.name]))
-  const npcPart = npcs
-    .map((npc) => {
-      const { locationId, ...rest } = toInput(npc)
-      return {
-        ...rest,
-        location: locationId ? (nameById.get(locationId) ?? null) : null,
-      }
-    })
-    .sort(
-      (a, b) =>
-        a.name.localeCompare(b.name) ||
-        (a.role ?? '').localeCompare(b.role ?? ''),
-    )
-  const locationPart = locations
-    .map((loc) => ({ name: loc.name, notes: loc.notes ?? null }))
-    .sort((a, b) => a.name.localeCompare(b.name))
-  return JSON.stringify({ npcs: npcPart, locations: locationPart })
-}
-
 function remember(backup: NpcBackup): NpcBackup {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(backup))
   return backup
@@ -127,17 +103,6 @@ export function lastSavedBackup(): NpcBackup | null {
   } catch {
     return null
   }
-}
-
-export function hasUnsavedChanges(
-  npcs: Npc[],
-  locations: Location[],
-  backup: NpcBackup | null,
-): boolean {
-  if (!backup) return npcs.length > 0 || locations.length > 0
-  return (
-    fingerprint(npcs, locations) !== fingerprint(backup.npcs, backup.locations)
-  )
 }
 
 function parseBackup(raw: string): NpcBackup {
