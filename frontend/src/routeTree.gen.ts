@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as NpcsRouteImport } from './routes/npcs'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as LocationsRouteImport } from './routes/locations'
 import { Route as IndexRouteImport } from './routes/index'
 
@@ -22,6 +23,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const NpcsRoute = NpcsRouteImport.update({
   id: '/npcs',
   path: '/npcs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LocationsRoute = LocationsRouteImport.update({
@@ -38,12 +44,14 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/locations': typeof LocationsRoute
+  '/login': typeof LoginRoute
   '/npcs': typeof NpcsRoute
   '/settings': typeof SettingsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/locations': typeof LocationsRoute
+  '/login': typeof LoginRoute
   '/npcs': typeof NpcsRoute
   '/settings': typeof SettingsRoute
 }
@@ -51,20 +59,22 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/locations': typeof LocationsRoute
+  '/login': typeof LoginRoute
   '/npcs': typeof NpcsRoute
   '/settings': typeof SettingsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/locations' | '/npcs' | '/settings'
+  fullPaths: '/' | '/locations' | '/login' | '/npcs' | '/settings'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/locations' | '/npcs' | '/settings'
-  id: '__root__' | '/' | '/locations' | '/npcs' | '/settings'
+  to: '/' | '/locations' | '/login' | '/npcs' | '/settings'
+  id: '__root__' | '/' | '/locations' | '/login' | '/npcs' | '/settings'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LocationsRoute: typeof LocationsRoute
+  LoginRoute: typeof LoginRoute
   NpcsRoute: typeof NpcsRoute
   SettingsRoute: typeof SettingsRoute
 }
@@ -83,6 +93,13 @@ declare module '@tanstack/react-router' {
       path: '/npcs'
       fullPath: '/npcs'
       preLoaderRoute: typeof NpcsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/locations': {
@@ -105,6 +122,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LocationsRoute: LocationsRoute,
+  LoginRoute: LoginRoute,
   NpcsRoute: NpcsRoute,
   SettingsRoute: SettingsRoute,
 }

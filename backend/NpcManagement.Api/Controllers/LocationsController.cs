@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NpcManagement.Api.Contracts;
 using NpcManagement.Domain.Entities;
@@ -7,6 +8,7 @@ namespace NpcManagement.Api.Controllers;
 
 [ApiController]
 [Route("api/locations")]
+[Authorize]
 public class LocationsController : ControllerBase
 {
     private readonly ILocationRepository _locationRepository;

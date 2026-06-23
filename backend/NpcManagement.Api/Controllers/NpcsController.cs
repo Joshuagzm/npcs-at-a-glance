@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NpcManagement.Api.Contracts;
 using NpcManagement.Domain.Entities;
@@ -8,6 +9,7 @@ namespace NpcManagement.Api.Controllers;
 
 [ApiController]
 [Route("api/npcs")]
+[Authorize]
 public class NpcsController : ControllerBase
 {
     private readonly INpcRepository _npcRepository;
