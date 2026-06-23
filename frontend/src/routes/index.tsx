@@ -1,12 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { MapPin, Settings, Users } from 'lucide-react'
-import type { ReactNode } from 'react'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
-import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/')({
   component: HomePage,
@@ -14,25 +7,6 @@ export const Route = createFileRoute('/')({
 
 const tileClasses =
   'flex h-40 flex-col items-center justify-center gap-3 rounded-xl border bg-card p-6 text-center text-card-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 outline-none'
-
-function DisabledTile({ children }: { children: ReactNode }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span
-          className={cn(
-            tileClasses,
-            'cursor-not-allowed opacity-50 hover:bg-card hover:text-card-foreground',
-          )}
-          aria-disabled="true"
-        >
-          {children}
-        </span>
-      </TooltipTrigger>
-      <TooltipContent>Under development</TooltipContent>
-    </Tooltip>
-  )
-}
 
 function HomePage() {
   return (
@@ -50,10 +24,10 @@ function HomePage() {
           <span className="text-lg font-semibold">Location Management</span>
         </Link>
 
-        <DisabledTile>
+        <Link to="/settings" className={tileClasses}>
           <Settings className="size-8" />
           <span className="text-lg font-semibold">Settings</span>
-        </DisabledTile>
+        </Link>
       </div>
     </section>
   )

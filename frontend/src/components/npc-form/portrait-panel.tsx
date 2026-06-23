@@ -4,7 +4,9 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { withForm } from '@/components/form/app-form'
 import { generatePortrait } from '@/lib/api'
+import { getForgeUrl } from '@/lib/settings'
 import { RACE_LABELS } from '@/lib/nameGenerator'
+import { GenerateButton } from './generate-portrait-button'
 import { AGE_OPTIONS, GENDER_OPTIONS, npcFormOptions } from './npc-form'
 
 // Portrait image + the appearance fields that feed its prompt. The appearance
@@ -34,6 +36,9 @@ export const PortraitPanel = withForm({
       },
     })
 
+    // Generation needs a Forge URL configured on the Settings page.
+    const forgeConfigured = getForgeUrl().trim().length > 0
+
     return (
       <div className="w-72 shrink-0 space-y-4">
         <div className="space-y-2">
@@ -59,19 +64,12 @@ export const PortraitPanel = withForm({
                         Remove
                       </Button>
                     )}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={portraitMutation.isPending}
-                      onClick={() => portraitMutation.mutate()}
-                    >
-                      {portraitMutation.isPending
-                        ? 'Generating…'
-                        : portrait
-                          ? 'Regenerate'
-                          : 'Generate portrait'}
-                    </Button>
+                    <GenerateButton
+                      forgeConfigured={forgeConfigured}
+                      pending={portraitMutation.isPending}
+                      hasPortrait={Boolean(portrait)}
+                      onGenerate={() => portraitMutation.mutate()}
+                    />
                   </div>
                 </div>
                 {portrait ? (

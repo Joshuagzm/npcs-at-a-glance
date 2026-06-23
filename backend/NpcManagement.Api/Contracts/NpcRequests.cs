@@ -75,6 +75,9 @@ public record GeneratePortraitRequest(
     string? Age = null,
     string? SkinColor = null,
     string? AppearanceDetails = null,
-    long? Seed = null);
+    long? Seed = null,
+    // Base URL of the user's Forge instance, from the Settings page. Required
+    // for generation; the endpoint rejects the request when it's missing.
+    string? ForgeUrl = null);
 
 public record GeneratePortraitResponse(string Image, long Seed);

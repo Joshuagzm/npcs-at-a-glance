@@ -103,6 +103,16 @@ public class NpcsController : ControllerBase
         GeneratePortraitRequest request,
         CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(request.ForgeUrl))
+        {
+            // 400: the user hasn't configured an image generator address yet.
+            return BadRequest(new
+            {
+                error = "No image generator is configured. Set the Forge URL on "
+                    + "the Settings page before generating a portrait.",
+            });
+        }
+
         try
         {
             var result = await _portraitGenerator.GenerateAsync(
@@ -110,6 +120,7 @@ public class NpcsController : ControllerBase
                     request.Race, request.Role, request.Name, request.IsHostile,
                     request.Gender, request.Age, request.SkinColor,
                     request.AppearanceDetails, request.Seed),
+                request.ForgeUrl,
                 cancellationToken);
             return Ok(new GeneratePortraitResponse(result.Image, result.Seed));
         }
