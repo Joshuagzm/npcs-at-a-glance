@@ -184,6 +184,7 @@ Naming conventions: `npcs.$npcId.tsx` for path params (`/npcs/:npcId`), `__root.
 - Sample requests live in `backend/NpcManagement.Api/NpcManagement.Api.http` — runnable directly from VS Code (REST Client extension) or Rider/Visual Studio.
 - An OpenAPI document is served at `http://localhost:5000/openapi/v1.json` in development.
 - NPCs and locations both persist to **PostgreSQL**. NPCs carry a `location_id`, and `npc.npc_locations` is a join table (foreign-keyed to both `npc.npcs` and `npc.locations`) kept in sync whenever an NPC is created or updated with a location.
+- **Per-user ownership**: `npc.npcs` and `npc.locations` each carry a `user_id` (the Identity user that created the row). Every NPC/location endpoint is scoped to the authenticated user — you only ever see, edit or delete your own, and another user's id returns `404`. The owner is taken from the JWT, never the request body. Rows created before this feature have a `NULL` `user_id` and belong to no one.
 
 ## Users & authentication
 

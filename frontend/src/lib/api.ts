@@ -27,6 +27,7 @@ export interface StatBlock {
 
 export interface Location {
   id: string
+  userId: string
   name: string
   notes: string | null
   createdAt: string
@@ -39,6 +40,7 @@ export interface LocationInput {
 
 export interface Npc {
   id: string
+  userId: string
   name: string
   role: string | null
   locationId: string | null
