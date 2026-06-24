@@ -4,7 +4,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { formOptions } from '@tanstack/react-form'
 import { z } from 'zod'
 import { X } from 'lucide-react'
-import { BackupControls } from '@/components/backup-controls'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -119,17 +118,14 @@ function LocationsPage() {
           <h1 className="text-3xl font-bold tracking-tight">Locations</h1>
           <p className="text-muted-foreground">Places your NPCs inhabit.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <BackupControls scope="locations" />
-          <Button
-            onClick={() => {
-              setEditing(null)
-              setDialogOpen(true)
-            }}
-          >
-            Add location
-          </Button>
-        </div>
+        <Button
+          onClick={() => {
+            setEditing(null)
+            setDialogOpen(true)
+          }}
+        >
+          Add location
+        </Button>
       </div>
 
       {locationsQuery.isLoading ? (
