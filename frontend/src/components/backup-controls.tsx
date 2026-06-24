@@ -11,8 +11,9 @@ import {
 
 // Save/Load backup buttons, shared by the NPCs and Locations pages. A backup
 // file holds both NPCs and locations, so saving or restoring from either page
-// covers the whole snapshot.
-export function BackupControls() {
+// covers the whole snapshot. `scope` is the page this instance lives on: Save
+// is disabled when that page has no entries (nothing worth backing up here).
+export function BackupControls({ scope }: { scope: 'npcs' | 'locations' }) {
   const queryClient = useQueryClient()
   const npcsQuery = useQuery({ queryKey: ['npcs'], queryFn: listNpcs })
   const locationsQuery = useQuery({
@@ -59,12 +60,21 @@ export function BackupControls() {
 
   const dataReady = npcsQuery.isSuccess && locationsQuery.isSuccess
 
+  // Disable Save when this page has nothing to back up.
+  const scopeData = scope === 'npcs' ? npcsQuery.data : locationsQuery.data
+  const scopeIsEmpty = (scopeData?.length ?? 0) === 0
+
   return (
     <div className="flex flex-col items-end gap-1">
       <div className="flex items-center gap-2">
         <Button
           variant="outline"
-          disabled={!dataReady || saveMutation.isPending}
+          disabled={!dataReady || scopeIsEmpty || saveMutation.isPending}
+          title={
+            dataReady && scopeIsEmpty
+              ? `No ${scope === 'npcs' ? 'NPCs' : 'locations'} to back up`
+              : undefined
+          }
           onClick={() => saveMutation.mutate()}
         >
           {saveMutation.isPending ? 'Saving…' : 'Save backup'}

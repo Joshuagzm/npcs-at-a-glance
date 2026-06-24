@@ -120,7 +120,7 @@ function LocationsPage() {
           <p className="text-muted-foreground">Places your NPCs inhabit.</p>
         </div>
         <div className="flex items-center gap-2">
-          <BackupControls />
+          <BackupControls scope="locations" />
           <Button
             onClick={() => {
               setEditing(null)
