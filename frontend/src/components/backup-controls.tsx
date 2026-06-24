@@ -1,5 +1,15 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { listLocations, listNpcs } from '@/lib/api'
 import {
@@ -7,11 +17,16 @@ import {
   pickBackupFile,
   restoreBackup,
   saveBackupToFile,
+  type NpcBackup,
 } from '@/lib/backup'
+
+const plural = (count: number, noun: string) =>
+  `${count} ${noun}${count === 1 ? '' : 's'}`
 
 // Export/Import controls for the Settings page. A backup file is a whole-system
 // snapshot — every NPC and location — so this is a single system-level action
-// rather than something scoped to a page. Importing replaces all current data.
+// rather than something scoped to a page. Importing replaces all current data,
+// gated behind a confirmation dialog.
 export function BackupControls() {
   const queryClient = useQueryClient()
   const npcsQuery = useQuery({ queryKey: ['npcs'], queryFn: listNpcs })
@@ -21,6 +36,11 @@ export function BackupControls() {
   })
 
   const [backup, setBackup] = useState(lastSavedBackup)
+  // The picked-but-not-yet-applied import; non-null means the confirm dialog
+  // is open. Restore only runs once the user confirms.
+  const [pendingImport, setPendingImport] = useState<NpcBackup | null>(null)
+  const [isPicking, setIsPicking] = useState(false)
+  const [pickError, setPickError] = useState<string | null>(null)
 
   const saveMutation = useMutation({
     mutationFn: () =>
@@ -31,31 +51,35 @@ export function BackupControls() {
   })
 
   const restoreMutation = useMutation({
-    mutationFn: async () => {
-      const picked = await pickBackupFile()
-      if (!picked) return null
-      const when = new Date(picked.savedAt).toLocaleString()
-      const npcCount = picked.npcs.length
-      const locationCount = picked.locations.length
-      if (
-        !confirm(
-          `Replace the current NPCs and locations with the backup saved ${when} ` +
-            `(${npcCount} NPC${npcCount === 1 ? '' : 's'}, ` +
-            `${locationCount} location${locationCount === 1 ? '' : 's'})?`,
-        )
-      ) {
-        return null
-      }
-      return restoreBackup(picked)
-    },
+    mutationFn: (picked: NpcBackup) => restoreBackup(picked),
     onSuccess: (restored) => {
-      if (restored) {
-        setBackup(restored)
-        queryClient.invalidateQueries({ queryKey: ['npcs'] })
-        queryClient.invalidateQueries({ queryKey: ['locations'] })
-      }
+      setBackup(restored)
+      queryClient.invalidateQueries({ queryKey: ['npcs'] })
+      queryClient.invalidateQueries({ queryKey: ['locations'] })
     },
   })
+
+  const handlePickImport = async () => {
+    setPickError(null)
+    setIsPicking(true)
+    try {
+      const picked = await pickBackupFile()
+      if (picked) setPendingImport(picked)
+    } catch (error) {
+      setPickError(
+        error instanceof Error ? error.message : 'Could not open that file.',
+      )
+    } finally {
+      setIsPicking(false)
+    }
+  }
+
+  const confirmImport = () => {
+    if (pendingImport) restoreMutation.mutate(pendingImport)
+    // Dialog also closes itself via onOpenChange; clearing here keeps the
+    // controlled `open` state in sync.
+    setPendingImport(null)
+  }
 
   const dataReady = npcsQuery.isSuccess && locationsQuery.isSuccess
   // Nothing to export when the whole system is empty.
@@ -78,13 +102,13 @@ export function BackupControls() {
         </Button>
         <Button
           variant="outline"
-          disabled={restoreMutation.isPending}
+          disabled={isPicking || restoreMutation.isPending}
           title={
             backup
               ? `Last exported ${new Date(backup.savedAt).toLocaleString()}`
               : 'No export saved yet'
           }
-          onClick={() => restoreMutation.mutate()}
+          onClick={handlePickImport}
         >
           {restoreMutation.isPending ? 'Importing…' : 'Import data'}
         </Button>
@@ -94,11 +118,42 @@ export function BackupControls() {
           Failed to export data: {saveMutation.error.message}
         </p>
       )}
+      {pickError && <p className="text-sm text-destructive">{pickError}</p>}
       {restoreMutation.isError && (
         <p className="text-sm text-destructive">
           Failed to import data: {restoreMutation.error.message}
         </p>
       )}
+
+      <AlertDialog
+        open={pendingImport !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingImport(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Replace all data?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingImport && (
+                <>
+                  This replaces the current NPCs and locations with the export
+                  saved {new Date(pendingImport.savedAt).toLocaleString()} (
+                  {plural(pendingImport.npcs.length, 'NPC')},{' '}
+                  {plural(pendingImport.locations.length, 'location')}). This
+                  can't be undone.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={confirmImport}>
+              Replace all data
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
