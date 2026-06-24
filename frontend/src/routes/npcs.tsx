@@ -36,7 +36,6 @@ import {
   type Npc,
   type NpcInput,
 } from '@/lib/api'
-import { BackupControls } from '@/components/backup-controls'
 import { useAppForm } from '@/components/form/app-form'
 import { HitPointsField } from '@/components/npc-form/hit-points-field'
 import { PortraitPanel } from '@/components/npc-form/portrait-panel'
@@ -130,17 +129,14 @@ function NpcsPage() {
             Everyone your players might meet.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <BackupControls />
-          <Button
-            onClick={() => {
-              setEditing(null)
-              setDialogOpen(true)
-            }}
-          >
-            Add NPC
-          </Button>
-        </div>
+        <Button
+          onClick={() => {
+            setEditing(null)
+            setDialogOpen(true)
+          }}
+        >
+          Add NPC
+        </Button>
       </div>
 
       {npcsQuery.isPending && (

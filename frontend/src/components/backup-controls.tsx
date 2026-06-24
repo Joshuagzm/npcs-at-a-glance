@@ -9,9 +9,9 @@ import {
   saveBackupToFile,
 } from '@/lib/backup'
 
-// Save/Load backup buttons, shared by the NPCs and Locations pages. A backup
-// file holds both NPCs and locations, so saving or restoring from either page
-// covers the whole snapshot.
+// Export/Import controls for the Settings page. A backup file is a whole-system
+// snapshot — every NPC and location — so this is a single system-level action
+// rather than something scoped to a page. Importing replaces all current data.
 export function BackupControls() {
   const queryClient = useQueryClient()
   const npcsQuery = useQuery({ queryKey: ['npcs'], queryFn: listNpcs })
@@ -58,38 +58,45 @@ export function BackupControls() {
   })
 
   const dataReady = npcsQuery.isSuccess && locationsQuery.isSuccess
+  // Nothing to export when the whole system is empty.
+  const systemIsEmpty =
+    (npcsQuery.data?.length ?? 0) === 0 &&
+    (locationsQuery.data?.length ?? 0) === 0
 
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className="flex flex-col items-start gap-1">
       <div className="flex items-center gap-2">
         <Button
           variant="outline"
-          disabled={!dataReady || saveMutation.isPending}
+          disabled={!dataReady || systemIsEmpty || saveMutation.isPending}
+          title={
+            dataReady && systemIsEmpty ? 'Nothing to export yet' : undefined
+          }
           onClick={() => saveMutation.mutate()}
         >
-          {saveMutation.isPending ? 'Saving…' : 'Save backup'}
+          {saveMutation.isPending ? 'Exporting…' : 'Export all data'}
         </Button>
         <Button
           variant="outline"
           disabled={restoreMutation.isPending}
           title={
             backup
-              ? `Last saved ${new Date(backup.savedAt).toLocaleString()}`
-              : 'No backup saved yet'
+              ? `Last exported ${new Date(backup.savedAt).toLocaleString()}`
+              : 'No export saved yet'
           }
           onClick={() => restoreMutation.mutate()}
         >
-          {restoreMutation.isPending ? 'Loading…' : 'Load backup'}
+          {restoreMutation.isPending ? 'Importing…' : 'Import data'}
         </Button>
       </div>
       {saveMutation.isError && (
         <p className="text-sm text-destructive">
-          Failed to save backup: {saveMutation.error.message}
+          Failed to export data: {saveMutation.error.message}
         </p>
       )}
       {restoreMutation.isError && (
         <p className="text-sm text-destructive">
-          Failed to load backup: {restoreMutation.error.message}
+          Failed to import data: {restoreMutation.error.message}
         </p>
       )}
     </div>
