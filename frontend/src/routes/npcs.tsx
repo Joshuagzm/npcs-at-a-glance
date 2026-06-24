@@ -131,7 +131,7 @@ function NpcsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <BackupControls />
+          <BackupControls scope="npcs" />
           <Button
             onClick={() => {
               setEditing(null)
