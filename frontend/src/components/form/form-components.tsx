@@ -9,11 +9,13 @@ export function SubmitButton({
   pendingLabel,
   pending,
   formId,
+  className,
 }: {
   label: string
   pendingLabel: string
   pending?: boolean
   formId?: string
+  className?: string
 }) {
   const form = useFormContext()
   return (
@@ -26,7 +28,12 @@ export function SubmitButton({
       {({ canSubmit, isSubmitting }) => {
         const busy = pending || isSubmitting
         return (
-          <Button type="submit" form={formId} disabled={!canSubmit || busy}>
+          <Button
+            type="submit"
+            form={formId}
+            className={className}
+            disabled={!canSubmit || busy}
+          >
             {busy ? pendingLabel : label}
           </Button>
         )

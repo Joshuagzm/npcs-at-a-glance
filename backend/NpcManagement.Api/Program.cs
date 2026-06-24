@@ -33,7 +33,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddIdentityCore<AppUser>(options =>
     {
-        options.User.RequireUniqueEmail = true;
+        // Accounts are username-only — no email is collected, so don't require one.
+        options.User.RequireUniqueEmail = false;
         // Only require a minimum length — no character-class requirements.
         options.Password.RequiredLength = 8;
         options.Password.RequireDigit = false;

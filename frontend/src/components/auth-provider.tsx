@@ -23,9 +23,8 @@ import {
 type AuthContextValue = {
   user: AuthUser | null
   isAuthenticated: boolean
-  login: (email: string, password: string) => Promise<AuthResponse>
+  login: (userName: string, password: string) => Promise<AuthResponse>
   register: (
-    email: string,
     userName: string,
     password: string,
   ) => Promise<AuthResponse>
@@ -45,15 +44,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // clearing the token on a 401) into React state.
   useEffect(() => subscribe(() => setSession(readSession())), [])
 
-  const login = useCallback(async (email: string, password: string) => {
-    const result = await loginApi(email, password)
+  const login = useCallback(async (userName: string, password: string) => {
+    const result = await loginApi(userName, password)
     setAuth(result.token, result.user)
     return result
   }, [])
 
   const register = useCallback(
-    async (email: string, userName: string, password: string) => {
-      const result = await registerApi(email, userName, password)
+    async (userName: string, password: string) => {
+      const result = await registerApi(userName, password)
       setAuth(result.token, result.user)
       return result
     },

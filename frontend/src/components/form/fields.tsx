@@ -48,12 +48,14 @@ export function TextField({
   required,
   type = 'text',
   autoFocus,
+  autoComplete,
 }: {
   label?: string
   placeholder?: string
   required?: boolean
   type?: string
   autoFocus?: boolean
+  autoComplete?: string
 }) {
   const field = useFieldContext<string>()
   return (
@@ -65,6 +67,7 @@ export function TextField({
         placeholder={placeholder}
         required={required}
         autoFocus={autoFocus}
+        autoComplete={autoComplete}
         value={field.state.value}
         onChange={(e) => field.handleChange(e.target.value)}
         onBlur={field.handleBlur}

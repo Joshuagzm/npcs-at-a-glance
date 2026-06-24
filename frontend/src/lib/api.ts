@@ -226,20 +226,19 @@ export interface AuthResponse {
   user: AuthUser
 }
 
-export function login(email: string, password: string): Promise<AuthResponse> {
+export function login(userName: string, password: string): Promise<AuthResponse> {
   return request<AuthResponse>('/api/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ userName, password }),
   })
 }
 
 export function register(
-  email: string,
   userName: string,
   password: string,
 ): Promise<AuthResponse> {
   return request<AuthResponse>('/api/auth/register', {
     method: 'POST',
-    body: JSON.stringify({ email, userName, password }),
+    body: JSON.stringify({ userName, password }),
   })
 }
