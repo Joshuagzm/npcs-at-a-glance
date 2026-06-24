@@ -24,7 +24,6 @@ public class AuthController : ControllerBase
     {
         var user = new AppUser
         {
-            Email = request.Email,
             UserName = request.UserName,
         };
 
@@ -40,11 +39,10 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<ActionResult<AuthResponse>> Login(LoginRequest request)
     {
-        var user = await _userManager.FindByEmailAsync(request.Email);
+        var user = await _userManager.FindByNameAsync(request.UserName);
         if (user is null || !await _userManager.CheckPasswordAsync(user, request.Password))
         {
-            // Same response whether the email is unknown or the password is wrong.
-            return Unauthorized(new { error = "Invalid email or password." });
+            return Unauthorized(new { error = "Invalid username or password." });
         }
 
         return await BuildAuthResponse(user);
