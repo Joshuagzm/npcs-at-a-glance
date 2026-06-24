@@ -21,7 +21,8 @@ frontend/dist/
 
 # Monster Manual PDF and extracted data (copyrighted - keep local only)
 resources/
+docs/
 frontend/public/monster-manual.json
 
-/scripts/start-all.ps1
+/scripts
 /frontend/src/routeTree.gen.ts
