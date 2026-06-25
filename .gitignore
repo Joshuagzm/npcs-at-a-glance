@@ -26,3 +26,9 @@ frontend/public/monster-manual.json
 
 /scripts
 /frontend/src/routeTree.gen.ts
+
+# Claude things
+.claude
+.mcp.json
+CLAUDE.md
+SESSION_SUMMARY.md
